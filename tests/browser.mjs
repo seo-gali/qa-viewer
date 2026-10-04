@@ -19,7 +19,7 @@ try {
   await page.goto(base);
   await page.waitForFunction(() => document.getElementById('checks').children.length > 0);
   assert.equal(await page.locator('iframe').getAttribute('sandbox'), 'allow-same-origin');
-  const html = `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0}#fixture{width:100vw;height:100vh;background:#ddd}@media(max-width:400px){#fixture{background:rgb(255, 0, 0)}}.wide{width:428px}.tiny{font-size:10px}.outside{position:fixed;top:-20px}.clip{overflow:hidden;width:100px;height:30px}.clipped{width:180px;height:60px}.below{margin-top:1500px}</style><main id="fixture"><div class="wide">Overflow</div><span class="tiny">Tiny</span><div class="outside">Fixed</div><div class="clip"><div class="clipped">Clipped</div></div><p class="below">Normal scroll content</p></main><script>parent.document.body.dataset.escaped='yes';document.querySelector('#fixture').remove();</script>`;
+  const html = `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0}#fixture{width:100vw;height:100vh;background:#ddd}@media(max-width:400px){#fixture{background:rgb(255, 0, 0)}}.wide{width:428px}.tiny{font-size:10px}.outside{position:fixed;top:-20px}.clip{overflow:hidden;width:100px;height:30px}.clipped{width:180px;height:60px}.below{margin-top:1500px}</style><main id="fixture"><div class="wide">Overflow</div><span class="tiny">Tiny</span><a class="missing" href="#no-such-id">Missing</a><a class="valid" href="#fixture">Valid</a><img src="data:image/png;base64,broken" width="24" height="24" alt="broken fixture"><div class="outside">Fixed</div><div class="clip"><div class="clipped">Clipped</div></div><p class="below">Normal scroll content</p></main><script>parent.document.body.dataset.escaped='yes';document.querySelector('#fixture').remove();</script>`;
   await paste(html);
   const metrics = () => page.evaluate(() => {
     const win = document.querySelector('iframe').contentWindow, el = win.document.querySelector('#fixture');
@@ -33,12 +33,15 @@ try {
   assert.ok(await page.getByText('작은 텍스트', { exact:false }).count());
   assert.ok(await page.getByText('화면 밖 fixed 요소', { exact:false }).count());
   assert.ok(await page.getByText('콘텐츠 잘림 가능', { exact:false }).count());
+  assert.ok(await page.getByText('깨진 내부 링크', { exact:false }).count());
+  assert.ok(await page.getByText('이미지 로드 실패', { exact:false }).count());
+  assert.equal(await page.locator('.issue strong').filter({hasText:'a.valid'}).count(),0);
   assert.equal(await page.locator('.issue strong').filter({ hasText: '.below' }).count(), 0);
   await page.locator('.issue').first().click(); assert.equal(await page.locator('.bounding-box').count(), 1);
   await page.click('#clear-box'); assert.equal(await page.locator('.bounding-box').count(), 0);
   await page.fill('#min-font', '9'); await page.locator('#min-font').press('Tab');
   await page.waitForTimeout(200); assert.equal(await page.getByText('작은 텍스트', { exact:false }).count(), 0);
-  await page.click('#rotate'); await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 844);
+  await page.click('#rotate'); await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 844 && document.querySelector('iframe').contentDocument?.querySelector('#fixture'));
   assert.equal((await metrics()).height, 390);
   await page.click('#rotate');
   await page.selectOption('#device', 'fold'); await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 768);
@@ -48,12 +51,19 @@ try {
   await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 412);
   assert.equal(await page.locator('#device').inputValue(), 'custom');
   await page.fill('#width', '20'); await page.locator('#width').press('Tab'); assert.equal(await page.locator('#width').inputValue(), '412');
-  await page.locator('#file').setInputFiles({name:'review.html', mimeType:'text/html', buffer:Buffer.from('<div id="fixture">Uploaded file</div>')});
+  assert.equal(await page.locator('#toast').getAttribute('role'),'alert');
+  const fileChooser = page.waitForEvent('filechooser'); await page.click('#open');
+  await (await fileChooser).setFiles({name:'review.html', mimeType:'text/html', buffer:Buffer.from('<div id="fixture">Uploaded file</div>')});
   await page.waitForFunction(() => document.getElementById('filename').textContent === 'review.html');
+  assert.equal(await page.locator('#toast').getAttribute('role'),'status');
+  await page.waitForFunction(()=>document.querySelector('iframe').contentDocument?.querySelector('#fixture'));
+  assert.equal(await page.evaluate(()=>document.querySelector('iframe').contentDocument.compatMode),'BackCompat');
   await page.evaluate(() => { const dt = new DataTransfer(); dt.items.add(new File(['<div id="fixture">Dropped</div>'], 'drop.html', {type:'text/html'})); document.getElementById('canvas').dispatchEvent(new DragEvent('drop', {bubbles:true, dataTransfer:dt})); });
   await page.waitForFunction(() => document.getElementById('filename').textContent === 'drop.html');
   await paste('<meta http-equiv="refresh" content="0;url=https://example.com"><div id="fixture">No navigation</div><iframe src="https://example.com"></iframe>');
   assert.equal(await page.evaluate(() => document.querySelector('iframe').contentDocument.querySelector('meta[http-equiv=refresh]')), null);
+  await paste('<!doctype html><link rel="stylesheet" href="data:text/css,%23fixture%7Bcolor%3Argb(1%2C2%2C3)%7D"><div id="fixture">Data stylesheet</div>');
+  assert.equal(await page.evaluate(()=>{const w=document.querySelector('iframe').contentWindow;return w.getComputedStyle(w.document.getElementById('fixture')).color;}),'rgb(1, 2, 3)');
   await page.click('#inspect'); assert.equal(await page.locator('#panel').isVisible(), false); await page.click('#inspect');
   await page.selectOption('#device', 'iphone');
   await paste(html); await page.selectOption('#scale', 'fit'); await page.uncheck('#safe');

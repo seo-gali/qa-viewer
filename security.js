@@ -7,5 +7,6 @@ export function previewDocument(html) {
   const policy = doc.createElement('meta');
   policy.httpEquiv = 'Content-Security-Policy'; policy.content = previewPolicy;
   doc.head.prepend(policy);
-  return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  const doctype = doc.doctype ? new XMLSerializer().serializeToString(doc.doctype) + '\n' : '';
+  return doctype + doc.documentElement.outerHTML;
 }

@@ -15,10 +15,11 @@
 
 ## 격리 및 데이터
 정적 미리보기는 sandbox="allow-same-origin"만 사용한다. allow-scripts를 함께 추가하지 않는다. CSP로 네트워크·중첩 프레임·폼을 제한한다. 원본 HTML은 메모리에만 보관하고 업로드를 자동 저장하지 않는다.
-Playwright는 로컬 loopback 서버의 새 브라우저 컨텍스트에서 실행한다. 사용자 콘텐츠의 네트워크, 다운로드, 팝업, 서비스 워커를 차단한다. 서버 파일 제공은 명시적 허용 목록만 사용한다.
+Playwright는 로컬 loopback 서버의 새 브라우저 컨텍스트에서 실행한다. HTML 모드의 네트워크와 모든 모드의 다운로드·팝업·서비스 워커를 차단한다. 사용자가 지정한 URL 모드만 공개 HTTPS 리소스 GET을 허용하며, 매 요청의 DNS 검증·공개 IPv4 고정 연결·크기/개수/시간 제한을 유지한다. Cookie·Authorization을 원격으로 전달하지 않는다. 서버 파일 제공은 명시적 허용 목록만 사용한다.
+로컬 API는 메모리 세션의 HttpOnly/SameSite=Strict 쿠키와 Host/Origin 검증, 입력 스키마 검증, 분당 20회 제한을 유지한다. 로컬 HTTP 쿠키를 Secure로 오표기하지 않는다. 운영 서비스·다중 사용자 인증으로 주장하지 않는다. 시크릿 검사에서 실제 키 값을 출력하지 않으며, 발견 시 파일명만 보고한다.
 
 ## 위임
 독립 작업이고 컨텍스트 절감 이득이 명확할 때만 서브에이전트를 사용한다. 브리핑에는 Goal, Constraints, Verification, Halt를 모두 적고 전체 대화 복사를 피한다.
 
 ## 검증과 보고
-변경 영향에 맞는 직접 검증을 수행한다. npm run check, npm test, 가능하면 npm run test:browser를 실행한다. 실패를 수정하고 다시 검증한다. 각 Phase 완료 시 README.md / Design.md의 상태와 검증 기록을 맞추고 로컬 커밋한다. 완료 보고에는 변경 내용, 실행한 검증, 실제 남은 제약만 적는다.
+변경 영향에 맞는 직접 검증을 수행한다. npm run check, npm test, npm run test:browser, npm run test:secrets를 실행한다. URL 변경 시 npm run test:url로 공개 example.com 읽기 검증, 의존성 변경 시 npm audit을 추가한다. 실패를 수정하고 다시 검증한다. 각 Phase 완료 시 README.md / Design.md의 상태와 검증 기록을 맞추고 로컬 커밋한다. README는 명사형 문체로 유지한다. 완료 보고에는 변경 내용, 실행한 검증, 실제 남은 제약만 적는다.

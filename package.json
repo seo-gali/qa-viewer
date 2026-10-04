@@ -6,8 +6,10 @@
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
-    "test:browser": "node tests/browser.mjs",
-    "check": "node --check app.js && node --check inspector.js && node --check profiles.js && node --check server.mjs"
+    "test:browser": "node tests/browser.mjs && node tests/emulation-browser.mjs && node tests/mobile-browser.mjs",
+    "test:url": "node tests/url-smoke.mjs",
+    "test:secrets": "node tests/security-audit.mjs",
+    "check": "node --check app.js && node --check inspector.js && node --check profiles.js && node --check security.js && node --check emulation-ui.js && node --check emulation-config.mjs && node --check emulator.mjs && node --check public-url.js && node --check public-resource.mjs && node --check server.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -6,10 +6,36 @@ test('loopback server serves only application files and validates Host', async t
   const server = createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
   const base = `http://127.0.0.1:${server.address().port}`;
-  assert.equal((await fetch(base)).status, 200);
+  const home = await fetch(base); assert.equal(home.status,200); assert.equal(home.headers.get('x-frame-options'),'DENY'); assert.ok(home.headers.get('content-security-policy').includes("script-src 'self'"));
+  assert.ok(home.headers.get('set-cookie').includes('HttpOnly')); assert.ok(home.headers.get('set-cookie').includes('SameSite=Strict'));
   assert.equal((await fetch(base + '/.git/config')).status, 404);
   assert.equal((await fetch(base + '/package.json')).status, 404);
   assert.equal((await fetch(base, { method: 'POST' })).status, 405);
   const status = await new Promise(resolve => { http.get(base, { headers: { Host: 'attacker.example' } }, res => { res.resume(); resolve(res.statusCode); }); });
   assert.equal(status, 403);
+});
+test('emulation API requires matching Origin/JSON, validates input and caps body', async t => {
+  const server = createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => server.close(resolve)));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const home = await fetch(base), cookie = home.headers.get('set-cookie').split(';')[0];
+  assert.equal((await fetch(base+'/api/status')).status,401);
+  assert.equal((await fetch(base+'/api/status',{headers:{Cookie:cookie}})).status, 200);
+  const send = (body, headers = {}) => fetch(base+'/api/emulate', {method:'POST', headers:{Origin:base,'Content-Type':'application/json',Cookie:cookie, ...headers},body});
+  assert.equal((await send('{}', {Origin:'https://attacker.example'})).status, 403);
+  assert.equal((await send('{}', {'Content-Type':'text/plain'})).status, 403);
+  assert.equal((await send('not-json')).status, 400);
+  assert.equal((await send(JSON.stringify({html:'x',dpr:0}))).status, 400);
+  assert.equal((await send('x'.repeat(3*1024*1024+1))).status, 413);
+  assert.equal((await send(JSON.stringify({html:'<div>한글</div>',profile:'unknown'}))).status, 400);
+});
+test('local API enforces bounded rate, missing/forged sessions and tailored 404', async t => {
+  const server=createServer(); await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve)); t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const base=`http://127.0.0.1:${server.address().port}`;
+  const cookie=(await fetch(base)).headers.get('set-cookie').split(';')[0];
+  assert.equal((await fetch(base+'/api/status',{headers:{Cookie:'qa_session=forged'}})).status,401);
+  const missing=await fetch(base+'/missing'); assert.equal(missing.status,404); assert.ok((await missing.text()).includes('작업 공간으로 돌아가기'));
+  assert.equal((await fetch(base+'/favicon.svg')).status,200);
+  for(let i=0;i<20;i++) assert.equal((await fetch(base+'/api/emulate',{method:'POST',headers:{Origin:base,Cookie:cookie,'Content-Type':'application/json'},body:'{}'})).status,400);
+  const limit=await fetch(base+'/api/emulate',{method:'POST',headers:{Origin:base,Cookie:cookie,'Content-Type':'application/json'},body:'{}'}); assert.equal(limit.status,429); assert.ok(limit.headers.get('retry-after'));
 });

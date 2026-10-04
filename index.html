@@ -1,19 +1,20 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mobile QA — Content Viewer</title><link rel="stylesheet" href="styles.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mobile QA Viewer | HTML·URL 모바일 콘텐츠 검수</title><meta name="description" content="HTML 파일과 공개 URL을 다양한 모바일 CSS viewport에서 비교하고 Safe Area, overflow, 작은 글자, 깨진 내부 링크를 검수하는 로컬 QA Viewer입니다."><link rel="icon" type="image/svg+xml" href="favicon.svg"><link rel="stylesheet" href="styles.css"></head>
 <body>
-  <header class="masthead"><a class="identity" href="./"><span class="mark">▣</span><strong>mobile<span>qa</span></strong><span class="product-label">CONTENT VIEWER</span></a><div class="privacy"><span class="live-dot"></span> LOCAL WORKSPACE <span class="version">v0.1</span></div></header>
+  <header class="masthead"><a class="identity" href="./" aria-label="Mobile QA Viewer 홈"><span class="mark">▣</span><strong>mobile<span>qa</span></strong><span class="product-label">CONTENT VIEWER</span></a><button id="mobile-menu" class="mobile-menu" aria-label="미리보기 도구 메뉴" aria-controls="toolbar" aria-expanded="false">☰ 도구</button><div class="privacy"><span class="live-dot"></span> LOCAL WORKSPACE <span class="version">v0.1</span></div></header>
   <main class="workspace">
-    <section class="toolbar" aria-label="미리보기 설정">
+    <section id="toolbar" class="toolbar" aria-label="미리보기 설정">
       <div class="toolbar-primary">
         <button id="open" class="primary">＋ HTML 열기</button><input id="file" type="file" accept=".html,.htm,text/html" hidden>
-        <button id="paste">코드 붙여넣기</button><span class="divider"></span>
+        <button id="paste">코드 붙여넣기</button><button id="open-url">URL 열기</button><span class="divider"></span>
         <label class="sr-only" for="device">기기 프로필</label><select id="device"></select>
         <div class="dimensions"><label><span class="sr-only">너비</span><input id="width" type="number" min="240" max="2048" value="390"></label><span>×</span><label><span class="sr-only">높이</span><input id="height" type="number" min="240" max="2048" value="844"></label><span class="unit">CSS px</span></div>
         <button id="rotate" title="세로 / 가로 회전" aria-label="세로 / 가로 회전">↻</button>
         <label class="sr-only" for="scale">화면 배율</label><select id="scale"><option value="fit">Fit to canvas</option><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option></select>
         <button id="reload" title="원본 다시 렌더링" aria-label="원본 다시 렌더링">⟳</button>
         <span class="divider"></span><button id="compare" aria-pressed="false">▥ Compare</button><button id="add-device" hidden>＋ 기기 추가</button>
+        <button id="emulate" title="선택한 기기를 로컬 Chromium mobile context에서 검사">Chromium 검사 ↗</button>
       </div>
       <div class="toolbar-secondary"><div class="document-info"><span class="document-icon">▤</span><span id="filename">field-notes.html</span><span id="source-state" class="subtle">샘플 콘텐츠</span></div><div class="toggles"><label><input id="safe" type="checkbox">Safe Area</label><label><input id="inspect" type="checkbox" checked>Inspect</label><label class="font-setting">최소 글자 <input id="min-font" type="number" value="12" min="6" max="32">px</label></div></div>
     </section>
@@ -21,9 +22,17 @@
       <section id="canvas" class="canvas" aria-label="HTML 미리보기 · 파일을 드롭하세요"><div class="canvas-caption"><span>CSS VIEWPORT PREVIEW</span><span id="scale-label">FIT</span></div><div id="devices" class="devices"></div><div class="canvas-note">HTML 파일을 여기에 드롭하세요 <span>·</span> 기기 장식과 Safe Area는 검수용 시각화입니다</div></section>
       <aside id="panel" class="panel" aria-label="레이아웃 검사"><div class="panel-heading"><div><span id="review-profile" class="overline">LAYOUT REVIEW</span><h1>검수 결과 <span id="issue-count">0</span></h1></div><button id="rescan" title="다시 검사" aria-label="다시 검사">⟳</button></div><p class="panel-intro">현재 viewport에서 확인한 레이아웃과<br>설정한 검수 기준을 보여줍니다.</p><div id="checks" class="checks"></div><div class="issues-heading"><span>주의해서 살펴볼 요소</span><button id="clear-box" class="text-button">표시 지우기</button></div><div id="issues" class="issues"></div><details class="breakpoints"><summary>CSS media query</summary><div id="breakpoints"></div></details><p class="inspection-note">경고는 검수 참고입니다. 작은 글자는 웹 표준 위반이 아니며, Safe Area는 실제 기기 값과 다를 수 있습니다.</p></aside>
     </div>
-    <footer class="statusbar"><span><span class="live-dot"></span><span id="status">준비됨</span></span><span>Desktop iframe · JavaScript OFF · 외부 리소스 차단</span></footer>
+    <footer class="statusbar"><span><span class="live-dot"></span><span id="status">준비됨</span></span><span id="render-mode">Desktop iframe · JavaScript OFF · 외부 리소스 차단</span><span class="footer-links">© <time id="copyright-year" datetime="2026">2026</time> Mobile QA Viewer <a href="./">홈</a><a href="https://github.com/seoheejung/qa-viewer" target="_blank" rel="noopener noreferrer">GitHub ↗</a></span></footer>
   </main>
-  <dialog id="paste-dialog"><form method="dialog" class="dialog-heading"><div><span class="overline">HTML SOURCE</span><h2>콘텐츠 붙여넣기</h2></div><button aria-label="닫기">✕</button></form><label class="sr-only" for="code">HTML 코드</label><textarea id="code" spellcheck="false" placeholder="<!doctype html>..."></textarea><div class="dialog-footer"><span>원본 CSS와 viewport meta를 보존합니다.</span><button id="apply-code" class="primary">미리보기 적용</button></div></dialog>
+  <dialog id="paste-dialog"><form method="dialog" class="dialog-heading"><div><span class="overline">HTML SOURCE</span><h2>콘텐츠 붙여넣기</h2></div><button aria-label="닫기">✕</button></form><label class="code-label" for="code">검수할 HTML 코드</label><textarea id="code" spellcheck="false"></textarea><div class="dialog-footer"><span>원본 CSS와 viewport meta를 보존합니다.</span><button id="apply-code" class="primary">미리보기 적용</button></div></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="url-dialog"><form method="dialog" class="dialog-heading"><div><span class="overline">PUBLIC WEBSITE</span><h2>URL 콘텐츠 열기</h2></div><button aria-label="URL 입력 닫기">✕</button></form><label for="url-input">공개 HTTPS URL</label><input id="url-input" class="url-input" type="url" aria-describedby="url-help"><p id="url-help" class="emulation-intro">사이트가 iframe을 허용하면 비교 화면에 표시합니다. 다른 도메인의 DOM은 여기서 검사할 수 없습니다. 삽입이 차단되거나 Inspect가 필요하면 Chromium 검사를 실행하세요. 로그인·사설망·IPv6 전용 사이트는 지원하지 않습니다.</p><div class="dialog-footer"><span>JavaScript는 Chromium 검사에서 선택적으로 실행합니다.</span><button id="apply-url" class="primary">URL 적용</button></div></dialog>
+  <dialog id="emulation-dialog" class="emulation-dialog"><form method="dialog" class="dialog-heading"><div><span class="overline">BROWSER EMULATION · LOCAL CHROMIUM</span><h2>모바일 브라우저 검사</h2></div><button aria-label="브라우저 검사 닫기">✕</button></form>
+    <p class="emulation-intro">모바일 viewport meta, DPR, touch, User Agent를 적용한 Chromium 스냅샷입니다. 실제 Safari / 휴대폰의 최종 검사는 별도로 진행하세요.</p>
+    <div class="emulation-settings"><label>DPR <input id="emulation-dpr" type="number" min="1" max="4" step="0.25" value="3"></label><label>테마 <select id="emulation-color"><option value="light">Light</option><option value="dark">Dark</option></select></label><label><input id="emulation-scripts" type="checkbox">JavaScript 실행</label><button id="run-emulation" class="primary">검사 실행</button></div>
+    <p class="emulation-policy">HTML: 외부 차단 / URL: 공개 리소스 GET만 허용 · 팝업·다운로드 차단 · Safe Area / Fold env() 미재현</p>
+    <p id="emulation-progress" class="emulation-progress" role="status"></p>
+    <div id="emulation-result" hidden><div class="emulation-actions"><span id="emulation-caption"></span><button id="download-image">PNG 저장</button><button id="download-webp">WebP 압축 저장</button><button id="download-report">JSON 저장</button></div><div class="emulation-content"><div class="emulation-shot"><img id="emulation-image" alt="Chromium 검사 스크린샷"></div><div class="emulation-details"><dl id="emulation-metrics"></dl><div id="emulation-issues"></div></div></div></div>
+  </dialog>
   <script type="module" src="app.js"></script>
 </body></html>

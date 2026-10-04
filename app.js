@@ -2,11 +2,21 @@ import { profiles, resolveProfile, fitScale, validDimension } from './profiles.j
 import { previewDocument } from './security.js';
 import { inspectDocument } from './inspector.js';
 import { sample } from './sample.js';
+import { setupEmulation } from './emulation-ui.js';
+import { validatePublicUrl } from './public-url.js';
 
 const $ = id => document.getElementById(id);
-const state = { html: sample, filename: 'field-notes.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'galaxy-ultra', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
+const state = { html: sample, url: null, filename: 'field-notes.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'galaxy-ultra', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
 let toastTimer, scanTimer;
-export function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500); }
+export function toast(message, kind = 'error') {
+  const dialog = document.querySelector('dialog[open]');
+  if (dialog && kind === 'error') {
+    let feedback = dialog.querySelector('.dialog-error');
+    if (!feedback) { feedback = document.createElement('p'); feedback.className = 'dialog-error'; feedback.setAttribute('role', 'alert'); dialog.append(feedback); }
+    feedback.textContent = message; return;
+  }
+  $('toast').textContent = message; $('toast').className = `toast ${kind}`; $('toast').setAttribute('role', kind === 'error' ? 'alert' : 'status'); $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500);
+}
 function populate(select, selected = 'iphone') {
   for (const group of [...new Set(profiles.map(p => p.group))]) {
     const optgroup = document.createElement('optgroup'); optgroup.label = group;
@@ -32,10 +42,13 @@ function render() {
   state.generation++;
   syncToolbar();
   $('rotate').setAttribute('aria-pressed', String(state.landscape));
+  $('render-mode').textContent = state.url ? 'URL iframe · JavaScript OFF · Inspect는 Chromium 검사에서 지원' : 'Desktop iframe · JavaScript OFF · 외부 리소스 차단';
+  state.cards.forEach(card => { if (card.blobURL) URL.revokeObjectURL(card.blobURL); });
   $('devices').replaceChildren(); state.cards = [];
   const selected = state.compare ? state.selections : state.selections.slice(0, 1);
   selected.forEach((id, index) => createCard(resolveProfile(id, state.custom[index], state.landscape), index));
   activate(state.active);
+  if (state.url) displayURLReport();
   scaleCards();
 }
 function createCard(p, index) {
@@ -52,7 +65,7 @@ function createCard(p, index) {
       const remove = document.createElement('button'); remove.className = 'remove-card'; remove.textContent = '✕'; remove.setAttribute('aria-label', `기기 ${index + 1} 제거`);
       remove.addEventListener('click', () => { state.selections.splice(index, 1); state.custom.splice(index, 1); state.active = Math.min(state.active, state.selections.length - 1); render(); }); title.append(remove);
     }
-    review = document.createElement('button'); review.className = 'card-review'; review.textContent = `${p.width} × ${p.height} · 검사 중`; review.setAttribute('aria-label', `기기 ${index + 1} 검사 결과`); review.addEventListener('click', () => activate(index));
+    review = document.createElement('button'); review.className = 'card-review'; review.textContent = `${p.width} × ${p.height} · ${state.url ? 'URL preview' : '검사 중'}`; review.setAttribute('aria-label', `기기 ${index + 1} 검사 결과`); review.addEventListener('click', () => activate(index));
   }
   const slot = document.createElement('div'); slot.className = 'device-slot';
   const device = document.createElement('div'); device.className = `device ${p.group === 'Generic' || p.id === 'custom' ? 'generic' : ''} ${p.hinge ? 'fold' : ''} ${state.landscape ? 'landscape' : ''}`;
@@ -64,16 +77,24 @@ function createCard(p, index) {
   const card = { article, p, slot, device, iframe, overlay, review, report: null, selected: null, generation: state.generation }; state.cards.push(card);
   iframe.addEventListener('load', () => {
     if (card.generation !== state.generation) return;
+    if (state.url) return;
     try {
       const win = iframe.contentWindow;
       win.addEventListener('scroll', () => scheduleScan(), { passive: true });
       iframe.contentDocument.addEventListener('pointerdown', () => activate(index));
+      const preventNavigation = event => {
+        const link = event.target.closest?.('a[href]');
+        if (link && !link.getAttribute('href').startsWith('#')) { event.preventDefault(); toast('HTML 정적 모드에서는 외부 링크 이동이 차단됩니다. URL 열기를 사용하세요.'); }
+      };
+      iframe.contentDocument.addEventListener('click', preventNavigation);
+      iframe.contentDocument.addEventListener('auxclick', preventNavigation);
       const observer = new win.ResizeObserver(() => scheduleScan()); observer.observe(iframe.contentDocument.body);
       iframe.contentDocument.fonts.ready.then(() => scheduleScan());
       scanCard(card); if (state.active === index) displayReport(card);
     } catch { toast('문서 접근이 차단되었습니다. 원본 HTML을 다시 열어 주세요.'); }
   });
-  iframe.srcdoc = previewDocument(state.html);
+  if (state.url) iframe.src = state.url;
+  else { card.blobURL = URL.createObjectURL(new Blob([previewDocument(state.html)], {type:'text/html'})); iframe.src = card.blobURL; }
   updateOverlay(card);
 }
 function scaleCards() {
@@ -82,6 +103,7 @@ function scaleCards() {
   const scale = $('scale').value === 'fit' ? fitScale(state.cards.map(c => c.p.width + 10), state.cards.map(c => c.p.height + 10), Math.max(240, canvas.clientWidth - 72), availableHeight) : Number($('scale').value);
   for (const card of state.cards) {
     card.device.style.transform = `scale(${scale})`;
+    card.article.style.width = `${(card.p.width + 10) * scale}px`;
     card.slot.style.width = `${(card.p.width + 10) * scale}px`; card.slot.style.height = `${(card.p.height + 10) * scale}px`;
   }
   $('scale-label').textContent = `${$('scale').value === 'fit' ? 'FIT · ' : ''}${Math.round(scale * 100)}%`;
@@ -109,6 +131,7 @@ function updateOverlay(card) {
   }
 }
 function scanCard(card) {
+  if (state.url) { card.report = null; updateOverlay(card); return; }
   try {
     const selectedIssue = card.report?.issues[card.selected];
     const selectedElement = selectedIssue && card.report.elements[selectedIssue.index];
@@ -123,9 +146,10 @@ function check(message, ok) {
   const row = document.createElement('div'); row.className = `check ${ok ? '' : 'warning'}`;
   const symbol = document.createElement('b'); symbol.textContent = ok ? '✓' : '⚠'; row.append(symbol, document.createTextNode(message)); return row;
 }
-const issueTypes = { overflow: 'Horizontal overflow', text: '작은 텍스트', safe: 'Safe Area 침범 가능', fixed: '화면 밖 fixed 요소', clipped: '콘텐츠 잘림 가능' };
+const issueTypes = { overflow: 'Horizontal overflow', text: '작은 텍스트', safe: 'Safe Area 침범 가능', fixed: '화면 밖 fixed 요소', clipped: '콘텐츠 잘림 가능', link: '깨진 내부 링크', image: '이미지 로드 실패' };
 function displayReport(card) {
-  if (!card?.report) return;
+  if (state.url) { displayURLReport(); return; }
+  if (!card?.report) { $('issue-count').textContent = '…'; $('checks').replaceChildren(); $('issues').replaceChildren(); $('breakpoints').textContent = '문서 로딩 중'; $('status').textContent = '문서 렌더링 / 검사 중'; return; }
   const r = card.report;
   $('review-profile').textContent = card.p.name.toUpperCase();
   $('issue-count').textContent = r.issues.length + (r.truncated ? '+' : '');
@@ -147,9 +171,19 @@ function displayReport(card) {
   if (!r.breakpoints.length) $('breakpoints').textContent = '검출된 media query 없음';
   $('status').textContent = `${card.p.width} × ${card.p.height} CSS px · ${state.landscape ? 'Landscape' : 'Portrait'} · Safe Area ${$('safe').checked ? 'ON' : 'OFF'} · ${r.horizontalOverflow ? 'Overflow 발견' : 'No horizontal overflow'}`;
 }
+function displayURLReport() {
+  const p = currentProfile();
+  $('review-profile').textContent = 'URL PREVIEW'; $('issue-count').textContent = '—';
+  $('checks').replaceChildren(check('다른 도메인 iframe: DOM 검사 불가', false), check('사이트가 iframe 삽입을 차단할 수 있습니다.', false));
+  $('issues').replaceChildren();
+  const message = document.createElement('p'); message.className = 'empty-issues'; message.textContent = 'Chromium 검사에서 모바일 viewport 스크린샷과 QA 리포트를 확인하세요.'; $('issues').append(message);
+  $('breakpoints').textContent = 'URL의 media query는 Chromium 검사에서 확인';
+  $('status').textContent = `${p.width} × ${p.height} CSS px · URL preview · DOM 검사 미실행`;
+}
 function loadHTML(html, filename, source) {
-  if (new Blob([html]).size > 2 * 1024 * 1024) return toast('HTML은 최대 2MB까지 열 수 있습니다.');
-  state.html = html; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
+  if (new Blob([html]).size > 2 * 1024 * 1024) { toast('HTML은 최대 2MB까지 열 수 있습니다.'); return false; }
+  state.html = html; state.url = null; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
+  toast(`${filename} 미리보기를 적용했습니다.`, 'success'); return true;
 }
 async function openFile(file) {
   if (!file || !/\.html?$/i.test(file.name)) return toast('.html 또는 .htm 파일을 선택해 주세요.');
@@ -159,7 +193,14 @@ async function openFile(file) {
 $('open').addEventListener('click', () => $('file').click());
 $('file').addEventListener('change', () => { openFile($('file').files[0]); $('file').value = ''; });
 $('paste').addEventListener('click', () => { $('code').value = state.html; $('paste-dialog').showModal(); });
-$('apply-code').addEventListener('click', () => { if (!$('code').value.trim()) return toast('HTML 코드를 입력해 주세요.'); loadHTML($('code').value, 'pasted-content.html', '붙여넣은 코드'); $('paste-dialog').close(); });
+$('open-url').addEventListener('click', () => { $('url-input').value = state.url ?? ''; $('url-dialog').showModal(); });
+$('apply-url').addEventListener('click', () => {
+  try { state.url = validatePublicUrl($('url-input').value.trim()); }
+  catch (error) { toast(error.message); return; }
+  $('filename').textContent = new URL(state.url).hostname; $('source-state').textContent = 'URL preview'; $('url-dialog').close(); render(); toast('URL을 적용했습니다. 사이트의 iframe 허용 여부에 따라 표시됩니다.', 'success');
+});
+$('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('apply-url').click(); } });
+$('apply-code').addEventListener('click', () => { if (!$('code').value.trim()) return toast('HTML 코드를 입력해 주세요.'); if (loadHTML($('code').value, 'pasted-content.html', '붙여넣은 코드')) $('paste-dialog').close(); });
 document.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); $('canvas').classList.add('dragover'); } });
 document.addEventListener('dragleave', e => { if (!e.relatedTarget) $('canvas').classList.remove('dragover'); });
 document.addEventListener('drop', e => { e.preventDefault(); $('canvas').classList.remove('dragover'); openFile(e.dataTransfer.files[0]); });
@@ -181,4 +222,8 @@ $('clear-box').addEventListener('click', () => { state.cards.forEach(c => { c.se
 $('compare').addEventListener('click', () => { state.compare = !state.compare; state.active = 0; render(); });
 $('add-device').addEventListener('click', () => { if (state.selections.length >= 4) return; state.selections.push('generic-320'); state.active = state.selections.length - 1; render(); });
 new ResizeObserver(scaleCards).observe($('canvas'));
+$('mobile-menu').addEventListener('click', () => { const opened = $('toolbar').classList.toggle('mobile-open'); $('mobile-menu').setAttribute('aria-expanded', String(opened)); });
+const copyrightYear = String(new Date().getFullYear()); $('copyright-year').textContent = copyrightYear; $('copyright-year').dateTime = copyrightYear;
+document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('close', () => dialog.querySelector('.dialog-error')?.remove()));
+setupEmulation(() => ({ ...(state.url ? {url:state.url} : {html:state.html}), profile: state.selections[state.active], custom: state.custom[state.active], landscape: state.landscape, dpr: currentProfile().dpr, minFont: Number($('min-font').value), safeArea: $('safe').checked }), toast);
 render();
