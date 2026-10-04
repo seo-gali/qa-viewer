@@ -1,0 +1,65 @@
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { createServer } from '../server.mjs';
+
+const server = createServer();
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const errors = [];
+page.on('pageerror', error => errors.push(error.message));
+const base = `http://127.0.0.1:${server.address().port}`;
+async function paste(html) {
+  await page.click('#paste'); await page.fill('#code', html); await page.click('#apply-code');
+  await page.waitForFunction(() => document.querySelector('iframe')?.contentDocument?.querySelector('#fixture'));
+  await page.waitForTimeout(180);
+}
+try {
+  await page.goto(base);
+  await page.waitForFunction(() => document.getElementById('checks').children.length > 0);
+  assert.equal(await page.locator('iframe').getAttribute('sandbox'), 'allow-same-origin');
+  const html = `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0}#fixture{width:100vw;height:100vh;background:#ddd}@media(max-width:400px){#fixture{background:rgb(255, 0, 0)}}.wide{width:428px}.tiny{font-size:10px}.outside{position:fixed;top:-20px}.clip{overflow:hidden;width:100px;height:30px}.clipped{width:180px;height:60px}.below{margin-top:1500px}</style><main id="fixture"><div class="wide">Overflow</div><span class="tiny">Tiny</span><div class="outside">Fixed</div><div class="clip"><div class="clipped">Clipped</div></div><p class="below">Normal scroll content</p></main><script>parent.document.body.dataset.escaped='yes';document.querySelector('#fixture').remove();</script>`;
+  await paste(html);
+  const metrics = () => page.evaluate(() => {
+    const win = document.querySelector('iframe').contentWindow, el = win.document.querySelector('#fixture');
+    return { width: win.innerWidth, height: win.innerHeight, rect: el.getBoundingClientRect().width, color: win.getComputedStyle(el).backgroundColor, escaped: document.body.dataset.escaped ?? null, meta: win.document.querySelector('meta[name=viewport]').content };
+  });
+  const before = await metrics();
+  assert.deepEqual(before, { width:390, height:844, rect:390, color:'rgb(255, 0, 0)', escaped:null, meta:'width=device-width, initial-scale=1' });
+  await page.selectOption('#scale', '0.5'); assert.deepEqual(await metrics(), before);
+  await page.selectOption('#scale', '1'); assert.deepEqual(await metrics(), before);
+  assert.ok(await page.getByText('Horizontal overflow', { exact:false }).count());
+  assert.ok(await page.getByText('작은 텍스트', { exact:false }).count());
+  assert.ok(await page.getByText('화면 밖 fixed 요소', { exact:false }).count());
+  assert.ok(await page.getByText('콘텐츠 잘림 가능', { exact:false }).count());
+  assert.equal(await page.locator('.issue strong').filter({ hasText: '.below' }).count(), 0);
+  await page.locator('.issue').first().click(); assert.equal(await page.locator('.bounding-box').count(), 1);
+  await page.click('#clear-box'); assert.equal(await page.locator('.bounding-box').count(), 0);
+  await page.fill('#min-font', '9'); await page.locator('#min-font').press('Tab');
+  await page.waitForTimeout(200); assert.equal(await page.getByText('작은 텍스트', { exact:false }).count(), 0);
+  await page.click('#rotate'); await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 844);
+  assert.equal((await metrics()).height, 390);
+  await page.click('#rotate');
+  await page.selectOption('#device', 'fold'); await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 768);
+  assert.equal(await page.locator('.hinge.vertical').count(), 1);
+  await page.check('#safe'); await page.waitForTimeout(200); assert.equal(await page.locator('.safe-top').count(), 1);
+  await page.fill('#width', '412'); await page.locator('#width').press('Tab');
+  await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 412);
+  assert.equal(await page.locator('#device').inputValue(), 'custom');
+  await page.fill('#width', '20'); await page.locator('#width').press('Tab'); assert.equal(await page.locator('#width').inputValue(), '412');
+  await page.locator('#file').setInputFiles({name:'review.html', mimeType:'text/html', buffer:Buffer.from('<div id="fixture">Uploaded file</div>')});
+  await page.waitForFunction(() => document.getElementById('filename').textContent === 'review.html');
+  await page.evaluate(() => { const dt = new DataTransfer(); dt.items.add(new File(['<div id="fixture">Dropped</div>'], 'drop.html', {type:'text/html'})); document.getElementById('canvas').dispatchEvent(new DragEvent('drop', {bubbles:true, dataTransfer:dt})); });
+  await page.waitForFunction(() => document.getElementById('filename').textContent === 'drop.html');
+  await paste('<meta http-equiv="refresh" content="0;url=https://example.com"><div id="fixture">No navigation</div><iframe src="https://example.com"></iframe>');
+  assert.equal(await page.evaluate(() => document.querySelector('iframe').contentDocument.querySelector('meta[http-equiv=refresh]')), null);
+  await page.click('#inspect'); assert.equal(await page.locator('#panel').isVisible(), false); await page.click('#inspect');
+  await page.click('#paste'); await page.fill('#code', await (await import('../sample.js')).sample); await page.click('#apply-code');
+  await page.selectOption('#device', 'iphone'); await page.selectOption('#scale', 'fit'); await page.uncheck('#safe');
+  await page.waitForTimeout(300); await mkdir('artifacts', {recursive:true}); await page.screenshot({path:'artifacts/phase-1.png',fullPage:true});
+  assert.deepEqual(errors, []);
+  console.log('PASS Phase 1: CSS viewport, Fit invariance, sandbox, QA warnings, rotation, custom bounds, upload/drop, overlays.');
+} finally {
+  await browser.close(); await new Promise(resolve => server.close(resolve));
+}
