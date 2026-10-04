@@ -22,13 +22,17 @@ HTML 파일을 열거나 화면에 드롭하고, 코드 붙여넣기를 사용�
 | 단계 | 범위 | 상태 |
 | --- | --- | --- |
 | Phase 1 | HTML 입력, CSS viewport, 기기 시각화, Layout Inspector | 완료 · 브라우저 검증 통과 |
-| Phase 2 | 2–4개 기기 비교, 개별 검사, 공통 표시 배율 | 예정 |
+| Phase 2 | 2–4개 기기 비교, 개별 검사, 공통 표시 배율 | 완료 · 브라우저 검증 통과 |
 | Phase 3 | Playwright Chromium mobile 컨텍스트, DPR / touch / UA, 스크린샷·QA 리포트 | 예정 |
 | Phase 4 | 실제 기기 QR 미리보기 | 범위 밖 |
 
 `npm run check`는 구문 검사, `npm test`는 프로필·서버 검증, `npm run test:browser`는 Chromium 기반 실제 화면 동작 검증입니다.
 
 Phase 1 검증: 단위·서버 테스트 4개 통과. Chromium에서 Fit 배율 변경 전후 100vw / 100vh / media query 불변, 업로드·드롭·붙여넣기, 회전, Custom 입력 범위, 요소 경고·bounding box, Safe Area·힌지, 원본 viewport meta 보존, 사용자 스크립트 차단을 확인했습니다. 화면 캡처는 `artifacts/phase-1.png`에 생성됩니다.
+
+Compare 버튼으로 비교 모드를 켭니다. 카드별 프로필과 아래 검사 결과 버튼으로 검사 대상을 선택하고, 상단 크기로 선택 카드의 Custom 크기를 지정할 수 있습니다. ＋ 기기 추가 / ✕ 제거로 2–4개를 구성합니다. 회전과 배율, Safe Area, 최소 글자 기준은 공통 설정입니다. 100%에서는 작업 공간을 스크롤합니다.
+
+Phase 2 검증: 390 / 412 / 768px 동시 렌더링, 공통 Fit 배율, 카드별 overflow 차이·기기 변경, 최소 2 / 최대 4개 제한, 공통 회전, 단일 모드 복귀 후 원본 보존을 Chromium에서 확인했습니다. `artifacts/phase-2.png` 생성.
 
 ## 공식 근거
 

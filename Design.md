@@ -22,5 +22,5 @@ ES modules와 기본 Node HTTP 서버만 사용한다. profiles.js는 기기 및
 
 ## 완료 기록
 - Phase 1: 완료. npm run check, npm test (4개), npm run test:browser 통과. CSS viewport / Fit 불변·입력·검사·격리를 Chromium에서 확인. artifacts/phase-1.png 생성.
-- Phase 2: 예정.
+- Phase 2: 완료. 구문·단위·브라우저 검증 통과. 독립 viewport / 공통 Fit / 카드별 QA / 2–4개 제한 / 회전 / 원본 보존 검증. artifacts/phase-2.png 생성.
 - Phase 3: 의존성 승인 후 구현 및 브라우저 검증.

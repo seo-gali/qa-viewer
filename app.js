@@ -4,7 +4,7 @@ import { inspectDocument } from './inspector.js';
 import { sample } from './sample.js';
 
 const $ = id => document.getElementById(id);
-const state = { html: sample, filename: 'field-notes.html', landscape: false, custom: { width: 390, height: 844 }, cards: [], generation: 0 };
+const state = { html: sample, filename: 'field-notes.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'galaxy-ultra', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
 let toastTimer, scanTimer;
 export function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500); }
 function populate(select, selected = 'iphone') {
@@ -16,37 +16,61 @@ function populate(select, selected = 'iphone') {
   select.value = selected;
 }
 populate($('device'));
-function currentProfile() { return resolveProfile($('device').value, state.custom, state.landscape); }
+function currentProfile() { return resolveProfile(state.selections[state.active], state.custom[state.active], state.landscape); }
+function syncToolbar() {
+  const p = currentProfile(); $('device').value = state.selections[state.active];
+  $('width').value = p.width; $('height').value = p.height;
+  $('add-device').hidden = !state.compare; $('add-device').disabled = state.selections.length >= 4;
+  $('compare').setAttribute('aria-pressed', String(state.compare));
+}
+function activate(index) {
+  state.active = index; syncToolbar();
+  state.cards.forEach((card, i) => { card.article.classList.toggle('active', i === index); card.review?.setAttribute('aria-pressed', String(i === index)); });
+  displayReport(state.cards[index]);
+}
 function render() {
   state.generation++;
-  const p = currentProfile();
-  $('width').value = p.width; $('height').value = p.height;
+  syncToolbar();
   $('rotate').setAttribute('aria-pressed', String(state.landscape));
   $('devices').replaceChildren(); state.cards = [];
-  createCard(p);
+  const selected = state.compare ? state.selections : state.selections.slice(0, 1);
+  selected.forEach((id, index) => createCard(resolveProfile(id, state.custom[index], state.landscape), index));
+  activate(state.active);
   scaleCards();
 }
-function createCard(p) {
+function createCard(p, index) {
   const article = document.createElement('article'); article.className = 'device-card';
   const title = document.createElement('div'); title.className = 'device-title';
   const name = document.createElement('span'); name.textContent = p.name;
   const size = document.createElement('small'); size.textContent = `${p.width} × ${p.height}`; title.append(name, size);
+  let review = null;
+  if (state.compare) {
+    const select = document.createElement('select'); select.className = 'card-profile'; select.setAttribute('aria-label', `기기 ${index + 1} 프로필`); populate(select, p.id);
+    select.addEventListener('change', () => { state.selections[index] = select.value; state.active = index; render(); });
+    title.replaceChildren(select);
+    if (state.selections.length > 2) {
+      const remove = document.createElement('button'); remove.className = 'remove-card'; remove.textContent = '✕'; remove.setAttribute('aria-label', `기기 ${index + 1} 제거`);
+      remove.addEventListener('click', () => { state.selections.splice(index, 1); state.custom.splice(index, 1); state.active = Math.min(state.active, state.selections.length - 1); render(); }); title.append(remove);
+    }
+    review = document.createElement('button'); review.className = 'card-review'; review.textContent = `${p.width} × ${p.height} · 검사 중`; review.setAttribute('aria-label', `기기 ${index + 1} 검사 결과`); review.addEventListener('click', () => activate(index));
+  }
   const slot = document.createElement('div'); slot.className = 'device-slot';
   const device = document.createElement('div'); device.className = `device ${p.group === 'Generic' || p.id === 'custom' ? 'generic' : ''} ${p.hinge ? 'fold' : ''} ${state.landscape ? 'landscape' : ''}`;
   device.style.width = `${p.width}px`; device.style.height = `${p.height}px`;
   const iframe = document.createElement('iframe'); iframe.title = `${p.name} HTML 미리보기`; iframe.setAttribute('sandbox', 'allow-same-origin'); iframe.referrerPolicy = 'no-referrer';
   iframe.width = p.width; iframe.height = p.height; iframe.style.width = `${p.width}px`; iframe.style.height = `${p.height}px`;
   const overlay = document.createElement('div'); overlay.className = 'device-overlay';
-  device.append(iframe, overlay); slot.append(device); article.append(title, slot); $('devices').append(article);
-  const card = { article, p, slot, device, iframe, overlay, report: null, selected: null, generation: state.generation }; state.cards.push(card);
+  device.append(iframe, overlay); slot.append(device); article.append(title, slot); if (review) article.append(review); $('devices').append(article);
+  const card = { article, p, slot, device, iframe, overlay, review, report: null, selected: null, generation: state.generation }; state.cards.push(card);
   iframe.addEventListener('load', () => {
     if (card.generation !== state.generation) return;
     try {
       const win = iframe.contentWindow;
       win.addEventListener('scroll', () => scheduleScan(), { passive: true });
+      iframe.contentDocument.addEventListener('pointerdown', () => activate(index));
       const observer = new win.ResizeObserver(() => scheduleScan()); observer.observe(iframe.contentDocument.body);
       iframe.contentDocument.fonts.ready.then(() => scheduleScan());
-      scanCard(card); displayReport(card);
+      scanCard(card); if (state.active === index) displayReport(card);
     } catch { toast('문서 접근이 차단되었습니다. 원본 HTML을 다시 열어 주세요.'); }
   });
   iframe.srcdoc = previewDocument(state.html);
@@ -54,7 +78,7 @@ function createCard(p) {
 }
 function scaleCards() {
   const canvas = $('canvas');
-  const availableHeight = Math.max(200, canvas.clientHeight - 154);
+  const availableHeight = Math.max(200, canvas.clientHeight - (state.compare ? 192 : 154));
   const scale = $('scale').value === 'fit' ? fitScale(state.cards.map(c => c.p.width + 10), state.cards.map(c => c.p.height + 10), Math.max(240, canvas.clientWidth - 72), availableHeight) : Number($('scale').value);
   for (const card of state.cards) {
     card.device.style.transform = `scale(${scale})`;
@@ -86,11 +110,15 @@ function updateOverlay(card) {
 }
 function scanCard(card) {
   try {
+    const selectedIssue = card.report?.issues[card.selected];
+    const selectedElement = selectedIssue && card.report.elements[selectedIssue.index];
     card.report = inspectDocument(card.iframe.contentDocument, { minFont: Number($('min-font').value), safe: $('safe').checked ? card.p.safe : [0, 0, 0, 0], includeElements: true });
+    if (selectedElement) { const i = card.report.issues.findIndex(issue => issue.type === selectedIssue.type && card.report.elements[issue.index] === selectedElement); card.selected = i >= 0 ? i : null; }
+    if (card.review) card.review.textContent = `${card.p.width} × ${card.p.height} · ${card.report.issues.length} 경고${card.report.horizontalOverflow ? ' · Overflow' : ''}`;
     updateOverlay(card);
   } catch { card.report = null; }
 }
-function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(() => { for (const card of state.cards) scanCard(card); displayReport(state.cards[0]); }, 100); }
+function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(() => { for (const card of state.cards) scanCard(card); displayReport(state.cards[state.active]); }, 100); }
 function check(message, ok) {
   const row = document.createElement('div'); row.className = `check ${ok ? '' : 'warning'}`;
   const symbol = document.createElement('b'); symbol.textContent = ok ? '✓' : '⚠'; row.append(symbol, document.createTextNode(message)); return row;
@@ -99,6 +127,7 @@ const issueTypes = { overflow: 'Horizontal overflow', text: '작은 텍스트', 
 function displayReport(card) {
   if (!card?.report) return;
   const r = card.report;
+  $('review-profile').textContent = card.p.name.toUpperCase();
   $('issue-count').textContent = r.issues.length + (r.truncated ? '+' : '');
   $('checks').replaceChildren(check(r.metaViewport ? 'viewport meta 존재' : 'viewport meta 없음', !!r.metaViewport), check(r.horizontalOverflow ? `가로 scroll ${r.scrollWidth}px / ${r.viewport.width}px` : '가로 스크롤 없음', !r.horizontalOverflow), check('JavaScript 격리 · 외부 리소스 차단', true));
   if (r.truncated) $('checks').append(check('스캔 / 경고 제한에 도달했습니다.', false));
@@ -134,12 +163,12 @@ $('apply-code').addEventListener('click', () => { if (!$('code').value.trim()) r
 document.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); $('canvas').classList.add('dragover'); } });
 document.addEventListener('dragleave', e => { if (!e.relatedTarget) $('canvas').classList.remove('dragover'); });
 document.addEventListener('drop', e => { e.preventDefault(); $('canvas').classList.remove('dragover'); openFile(e.dataTransfer.files[0]); });
-$('device').addEventListener('change', render);
+$('device').addEventListener('change', () => { state.selections[state.active] = $('device').value; render(); });
 for (const id of ['width', 'height']) $(id).addEventListener('change', () => {
   const width = $('width').value, height = $('height').value;
   if (!validDimension(width) || !validDimension(height)) { toast('크기는 240–2048 사이의 정수여야 합니다.'); $('width').value = currentProfile().width; $('height').value = currentProfile().height; return; }
-  state.custom = state.landscape ? { width: Number(height), height: Number(width) } : { width: Number(width), height: Number(height) };
-  $('device').value = 'custom'; render();
+  state.custom[state.active] = state.landscape ? { width: Number(height), height: Number(width) } : { width: Number(width), height: Number(height) };
+  state.selections[state.active] = 'custom'; render();
 });
 $('rotate').addEventListener('click', () => { state.landscape = !state.landscape; render(); });
 $('scale').addEventListener('change', scaleCards);
@@ -148,6 +177,8 @@ $('safe').addEventListener('change', scheduleScan);
 $('inspect').addEventListener('change', () => { $('panel').hidden = !$('inspect').checked; if (!$('inspect').checked) { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); } scaleCards(); });
 $('min-font').addEventListener('change', () => { const n = Number($('min-font').value); if (!Number.isFinite(n) || n < 6 || n > 32) { $('min-font').value = 12; toast('최소 글자 기준은 6–32px입니다.'); } scheduleScan(); });
 $('rescan').addEventListener('click', scheduleScan);
-$('clear-box').addEventListener('click', () => { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); displayReport(state.cards[0]); });
+$('clear-box').addEventListener('click', () => { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); displayReport(state.cards[state.active]); });
+$('compare').addEventListener('click', () => { state.compare = !state.compare; state.active = 0; render(); });
+$('add-device').addEventListener('click', () => { if (state.selections.length >= 4) return; state.selections.push('generic-320'); state.active = state.selections.length - 1; render(); });
 new ResizeObserver(scaleCards).observe($('canvas'));
 render();
