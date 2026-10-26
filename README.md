@@ -4,9 +4,11 @@ HTML·공개 HTTPS 콘텐츠의 모바일 CSS viewport 비교 및 레이아웃 �
 
 ## 실행
 
-필수 환경: 보안 패치가 적용된 Node.js 22 이상, Playwright Chromium.
+필수 환경: Node.js 22.23.4 이상(22.x)·24.22.1 이상(24.x)·26.12.1 이상(26.x), Playwright Chromium.
 
-현재 검증 환경: Node.js v24.22.1. `engines` 제한 및 실행 버전 강제는 [후속 계획](PLAN.md)의 별도 항목.
+현재 검증 환경: Node.js v24.22.1. `server/runtime.mjs`의 서버·공개 리소스 모듈 초기화 시 버전 검증 및 미지원 버전 실행 차단. CVE-2026-111497의 [공식 보안 릴리스](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases) 기준 하한 적용.
+
+`package.json`·lock 파일의 `engines: >=22`는 기존 메타데이터 유지 상태. 실제 실행 허용 범위는 위 런타임 검사 기준이며, lock 메타데이터 변경은 별도 승인 대상.
 
 ```sh
 npm ci
@@ -78,6 +80,7 @@ Chromium 검사 결과의 스냅샷 제공에 따른 클릭 흐름 조작 미지
 - 기본 샘플의 홍보 문구·장식 대신 검수 목록·내부 링크·확인 항목 제공.
 - 예제 폼의 blur/제출 검증, 오류 입력의 포커스·스크롤 이동, 완료 후 수정 시 입력 내용 유지.
 - URL·HTML·DPR 입력 오류의 해당 필드 연결 및 포커스 이동. 숫자·이메일 입력의 키패드 지정과 결과 이미지의 공간 확보.
+- 코드·URL 입력창의 미적용 초안 메모리 보존. 닫기·Escape·입력 오류 후 재개, 새 콘텐츠 적용 또는 페이지 새로고침 시 초기화. 미리보기의 적용 전 원본 유지.
 - 원본·업로드·개인정보의 localStorage 임시 저장 제외 및 메모리 보관 정책 유지.
 
 프로덕션 배포 전 10개 점검 항목: [AGENTS.md](AGENTS.md#프로덕션-배포-전-점검). 현재 적용 여부와 후속 과제: [PLAN.md](PLAN.md#배포-전-확인-기록).
@@ -146,13 +149,15 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 | 명령 | 검증 범위 | 결과 |
 | --- | --- | --- |
 | `npm run check` | JavaScript/Node 모듈 구문 | 통과 |
-| `npm test` | 프로필·Custom·URL 주소·입력·세션·Origin·크기·rate limit·404 | 11개 통과 |
+| `npm test` | 프로필·URL·입력·세션·Origin·제한·404·런타임 경계값·스테이징 단독 탐지 | 14개 통과 |
 | `npm run test:browser` | viewport/Fit·격리·비교·모바일 브라우저·UI·HTML 예제 상태/키보드/테마 | 통과 |
 | `npm run test:url` | example.com 실제 HTTPS 콘텐츠 및 Chromium 스냅샷 | 통과 |
-| `npm run test:secrets` | 전체 로컬 커밋 및 Git 추적 파일의 시크릿 파일/인식 키 패턴 | 발견 0건 |
+| `npm run test:secrets` | 전체 로컬 커밋·추적 작업 트리·스테이징의 시크릿 파일/인식 키 패턴 | 발견 0건 |
 | `npm audit` | 설치 의존성의 알려진 취약점 | 2026-10-05 기록: 0건·이번 의존성 변경 없음 |
 
 `npm start`의 이동한 진입점 및 기존 공개 경로 HTTP 200 확인. 로컬 문서 링크 13개 확인. `test:url` 최초 실행의 샌드박스 연결 차단(`EACCES`) 이후 제한 밖의 동일 검사 재실행 통과.
+
+보완 검증: Node.js 24.22.0을 모의한 서버·공개 리소스 진입점 차단, 실제 v24.22.1 서버 HTTP 200, 추가 문서를 포함한 로컬 링크 15개 확인. 이전 버전의 실제 Node 실행 파일을 설치한 검증은 제외.
 
 주요 확인 항목:
 
@@ -166,6 +171,9 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 - GitHub 푸터 링크의 공개 HTTPS 응답 200 확인: 2026-10-05 기록.
 - HTML 예제의 375·390·768·1440 CSS px 및 844 × 390 가로 방향·Light/Dark·긴 한국어 문구·입력 오류·완료·수정·키보드·포커스 이동·외부 요청 0건 확인.
 - 더보기의 키보드 조작, 모바일 주요 버튼 표시, URL·DPR 오류 포커스 및 편집 시 오류 정리 확인.
+- 미적용 코드·URL·빈 초안 보존, 오류 후 재개, 새 콘텐츠 적용·새로고침 시 초기화 및 브라우저 저장소 미사용 확인.
+
+추가 로컬 진단: [성능 측정 기록과 Chrome DevTools MCP 연결 검토안](docs/chrome-devtools.md). MCP 설치·클라이언트 설정 변경·Lighthouse 실행은 승인 전 미실시.
 
 브라우저 검증 후 `artifacts/`의 화면 캡처 생성 및 Git 제외:
 
@@ -199,10 +207,12 @@ qa-viewer/
 | `public/index.html`, `public/styles.css`, `public/app.js` | 뷰어 UI·반응형 화면·상태 관리 |
 | `public/profiles.js`, `public/inspector.js`, `public/security.js` | 프로필·DOM 검사·정적 문서 격리 |
 | `server/server.mjs`, `server/emulation-config.mjs`, `server/emulator.mjs` | 로컬 서버·API 검증·Chromium 검사 |
+| `server/runtime.mjs`, `tests/runtime.test.mjs` | 지원 메이저 및 보안 패치 하한 검사·경계값 검증 |
 | `public/public-url.js`, `server/public-resource.mjs` | URL 검증·공개 HTTPS 리소스 접근 |
 | `public/emulation-ui.js` | 검사 결과·다운로드·WebP 압축 |
 | `public/sample.js`, `public/404.html`, `public/favicon.svg` | 기본 샘플·404·파비콘 |
 | `examples/responsive-form.html`, `tests/artifact-browser.mjs` | 검수용 프로토타입·상태 및 키보드 회귀 검사 |
+| `tests/security-audit.mjs`, `tests/security-audit.test.mjs` | 작업 트리·스테이징·이력 검사 및 값 비노출 회귀 검사 |
 | [AGENTS.md](AGENTS.md) | 실행·승인·격리·검증 원칙 |
 | [PLAN.md](PLAN.md) | 구조 정리·HTML 지침 적용 계획·후속 항목 |
 | [docs/Design.md](docs/Design.md) | 제품 구조·렌더링 계약·보안 설계·완료 기록 |

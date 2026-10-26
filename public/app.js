@@ -8,6 +8,7 @@ import { validatePublicUrl } from './public-url.js';
 const $ = id => document.getElementById(id);
 const state = { html: sample, url: null, filename: 'qa-sample.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'galaxy-ultra', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
 let toastTimer, scanTimer;
+let codeDraft = null, urlDraft = null;
 export function toast(message, kind = 'error', input) {
   const dialog = document.querySelector('dialog[open]');
   if (dialog && kind === 'error') {
@@ -189,6 +190,7 @@ function displayURLReport() {
 function loadHTML(html, filename, source) {
   if (new Blob([html]).size > 2 * 1024 * 1024) { toast('HTML은 최대 2MB까지 열 수 있습니다.'); return false; }
   state.html = html; state.url = null; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
+  codeDraft = null; urlDraft = null;
   toast(`${filename} 미리보기를 적용했습니다.`, 'success'); return true;
 }
 async function openFile(file) {
@@ -198,11 +200,14 @@ async function openFile(file) {
 }
 $('open').addEventListener('click', () => $('file').click());
 $('file').addEventListener('change', () => { openFile($('file').files[0]); $('file').value = ''; });
-$('paste').addEventListener('click', () => { $('code').value = state.html; $('paste-dialog').showModal(); });
-$('open-url').addEventListener('click', () => { $('url-input').value = state.url ?? ''; $('url-dialog').showModal(); });
+$('paste').addEventListener('click', () => { $('code').value = codeDraft ?? state.html; $('paste-dialog').showModal(); });
+$('code').addEventListener('input', () => { codeDraft = $('code').value; });
+$('open-url').addEventListener('click', () => { $('url-input').value = urlDraft ?? state.url ?? ''; $('url-dialog').showModal(); });
+$('url-input').addEventListener('input', () => { urlDraft = $('url-input').value; });
 $('apply-url').addEventListener('click', () => {
   try { state.url = validatePublicUrl($('url-input').value.trim()); }
   catch (error) { toast(error.message, 'error', $('url-input')); return; }
+  codeDraft = null; urlDraft = null;
   $('filename').textContent = new URL(state.url).hostname; $('source-state').textContent = 'URL preview'; $('url-dialog').close(); render(); toast('URL을 적용했습니다. 사이트의 iframe 허용 여부에 따라 표시됩니다.', 'success');
 });
 $('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('apply-url').click(); } });

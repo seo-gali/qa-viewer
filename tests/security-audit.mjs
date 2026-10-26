@@ -16,5 +16,7 @@ for (const revision of [...revisions, null]) {
   const args = ['grep','-I','-l','-E',pattern]; if (revision) args.push(revision); args.push('--',...paths);
   const found = git(args,[0,1]); if(found) hits.push(found);
 }
+const staged = git(['grep','--cached','-I','-l','-E',pattern,'--',...paths],[0,1]);
+if (staged) hits.push(staged);
 assert.deepEqual(hits, [], '시크릿 패턴이 있는 추적 파일 발견 (값 출력 없음)');
-console.log(`PASS secrets audit: ${revisions.length} commit(s) + index, ${paths.size} tracked paths; no secret files or recognized key patterns.`);
+console.log(`PASS secrets audit: ${revisions.length} commit(s) + worktree + index, ${paths.size} tracked paths; no secret files or recognized key patterns.`);

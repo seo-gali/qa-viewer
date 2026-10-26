@@ -1,3 +1,4 @@
+import './runtime.mjs';
 import https from 'node:https';
 import { lookup } from 'node:dns/promises';
 import { createGunzip, createInflate, createBrotliDecompress } from 'node:zlib';

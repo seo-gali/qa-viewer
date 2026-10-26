@@ -6,6 +6,8 @@
 
 서버는 기존 웹 주소를 명시적 허용 목록으로 `public/` 파일에 매핑한다. 디렉토리 전체 제공이나 예제·문서·서버 소스 노출은 허용하지 않는다. `npm start` 진입점은 `server/server.mjs`다.
 
+`server/runtime.mjs`는 서버와 공개 리소스 모듈 초기화 시 Node.js 22.23.4 이상(22.x)·24.22.1 이상(24.x)·26.12.1 이상(26.x)을 검사한다. 기존 engines 메타데이터는 lock 파일 변경 승인 전까지 유지하며 실행 하한과 구분한다.
+
 ## 제품 경험
 상단은 HTML 입력·기기 선택·CSS 크기·회전·배율, 그 아래는 Safe Area와 Inspect 도구를 배치한다. 중앙의 점 패턴 작업 공간에 콘텐츠 화면을 놓고 우측 검사 패널에서 경고를 선택한다. 하단은 실제 viewport와 모드, 한계를 표시한다. 디바이스 장식은 얇은 외곽선과 cutout에 한정한다.
 
@@ -51,7 +53,7 @@ public-url.js는 자격 증명·비표준 포트·사설 및 예약 IP·IPv6·HT
 
 직접 검사: `node tests/artifact-browser.mjs` 통과. 375 / 390 / 768 / 1440 CSS px 및 844 × 390 가로 방향, Light/Dark, 정상·오류·수정·완료, 긴 한국어 문구·포커스·키보드, 정적 업로드와 Chromium JS OFF/ON 확인.
 
-최종 검증: `npm run check`, `npm test` (11개), `npm run test:browser`, `npm run test:url`, `npm run test:secrets` 통과. 최종 모바일 주요 버튼 변경 후 `node tests/mobile-browser.mjs` 추가 통과. `npm start` 진입점·공개 경로 HTTP 200, 로컬 문서 링크 13개, 화면 캡처 확인. `test:url`은 최초 샌드박스 EACCES 이후 제한 밖에서 동일 명령을 재실행해 통과. 의존성·lock 파일 변경 없음.
+구조 정리 단계 검증: `npm run check`, `npm test` (11개), `npm run test:browser`, `npm run test:url`, `npm run test:secrets` 통과. 최종 모바일 주요 버튼 변경 후 `node tests/mobile-browser.mjs` 추가 통과. `npm start` 진입점·공개 경로 HTTP 200, 로컬 문서 링크 13개, 화면 캡처 확인. `test:url`은 최초 샌드박스 EACCES 이후 제한 밖에서 동일 명령을 재실행해 통과. 의존성·lock 파일 변경 없음.
 
 ## UX·문구 정리
 
@@ -60,3 +62,13 @@ public-url.js는 자격 증명·비표준 포트·사설 및 예약 IP·IPv6·HT
 공통 `toast`의 대화상자 오류 처리에 선택적인 입력 연결을 추가한다. URL·HTML·DPR 오류는 해당 필드에 포커스·스크롤을 이동하고 ARIA 오류 참조를 연결한다. 편집 또는 대화상자 종료 시 이전 오류를 정리한다. 예제 폼은 blur와 제출에서 같은 검증 함수를 사용하며 첫 제출 오류에만 포커스·스크롤을 이동한다. 입력 중 오류 반복·원격 전송·localStorage 저장은 하지 않는다.
 
 숫자·이메일 입력에 적합한 inputmode를 지정하고 Chromium 결과 이미지의 width/height를 설정한다. 금액·비밀번호·대용량 업로드·페이지 prefetch 같은 별도 제품 기능은 추가하지 않는다. 배포 전 점검과 미구축 운영 항목은 [PLAN.md](../PLAN.md#배포-전-확인-기록)에 기록한다.
+
+## 미완료 항목 보완
+
+입력창 닫기 시 미적용 코드·URL이 초기화되던 동작을 각각의 메모리 초안으로 보완한다. 빈 입력도 유지하며 제출 오류는 초안을 지우지 않는다. 실제 파일·코드·URL을 적용하거나 페이지를 새로고침하면 초기화한다. 적용 전 원본 미리보기는 변경하지 않고 브라우저 저장소에도 기록하지 않는다.
+
+시크릿 검사는 기존 Git 호출·파일명만 출력하는 방식을 유지하며 `git grep --cached`를 추가한다. 임시 저장소의 가짜 탐지 패턴으로 인덱스에만 있는 경우·작업 트리에만 있는 경우를 검증하고 출력에 값이 포함되지 않는지 확인한다. 알려진 키 패턴 검사이며 모든 비밀 문자열 탐지를 보장하지 않는다.
+
+로컬 성능 수치·Chrome DevTools MCP 설치 전 검토안은 [chrome-devtools.md](chrome-devtools.md)에 기록한다. MCP 설치와 전역 연결 변경은 승인 전 미실시. 공개 SEO는 현재 loopback 도구와 분리하며 초기 정적 HTML 제공을 SSR 구현으로 간주하지 않는다. 기존 불일치 두 건과 런타임 메타데이터 차이는 PLAN에 기록한다.
+
+보완 최종 검증: `npm run check`, `npm test` (14개), `npm run test:browser`, `npm run test:url`, `npm run test:secrets` 종료 코드 0. 서버·공개 리소스 진입점에서 모의 24.22.0 차단 및 실제 v24.22.1의 HTTP 200 확인. 실제 구버전 바이너리 설치 검증은 미실시. 로컬 문서 링크 15개 확인. 의존성 버전·lock 파일·전역 MCP 설정 변경 없음.
