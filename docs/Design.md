@@ -1,5 +1,11 @@
 # 설계: Mobile Content QA Viewer
 
+## 파일 배치
+
+`public/`은 브라우저 코드·정적 자산과 서버에서도 사용하는 프로필·검사기·보안·URL 검증 모듈을 보관한다. `server/`는 로컬 HTTP 서버·입력 검증·Chromium·공개 리소스 요청을 담당한다. `examples/`는 검수용 단일 HTML, `tests/`는 회귀 검사, `docs/`는 설계 문서를 보관한다. 루트의 [README.md](../README.md)는 사용 안내, [PLAN.md](../PLAN.md)는 작업 상태와 후속 항목을 기록한다.
+
+서버는 기존 웹 주소를 명시적 허용 목록으로 `public/` 파일에 매핑한다. 디렉토리 전체 제공이나 예제·문서·서버 소스 노출은 허용하지 않는다. `npm start` 진입점은 `server/server.mjs`다.
+
 ## 제품 경험
 상단은 HTML 입력·기기 선택·CSS 크기·회전·배율, 그 아래는 Safe Area와 Inspect 도구를 배치한다. 중앙의 점 패턴 작업 공간에 콘텐츠 화면을 놓고 우측 검사 패널에서 경고를 선택한다. 하단은 실제 viewport와 모드, 한계를 표시한다. 디바이스 장식은 얇은 외곽선과 cutout에 한정한다.
 
@@ -34,3 +40,23 @@ public-url.js는 자격 증명·비표준 포트·사설 및 예약 IP·IPv6·HT
 - Phase 1: 완료. npm run check, npm test (4개), npm run test:browser 통과. CSS viewport / Fit 불변·입력·검사·격리를 Chromium에서 확인. artifacts/phase-1.png 생성.
 - Phase 2: 완료. 구문·단위·브라우저 검증 통과. 독립 viewport / 공통 Fit / 카드별 QA / 2–4개 제한 / 회전 / 원본 보존 검증. artifacts/phase-2.png 생성.
 - Phase 3: 완료. npm run check / npm test (11개) / npm run test:browser / npm run test:url / npm run test:secrets 통과. 모바일 meta viewport 390 / 980 / 500px, DPR media query·touch·회전·theme·JS opt-in·격리·스크린샷·PNG/WebP/JSON 다운로드·URL 리소스·timeout/동시성/취소 검증. 320 / 375 / 390 / 768 / 1440px의 홈·비교·대화상자·404 검증. example.com 실주소 검사 및 GitHub 푸터 HTTP 200 확인. npm audit 취약점 0건, Git 시크릿 파일·알려진 키 패턴 0건. artifacts/phase-3.png, phase-3-url.png, phase-3-live-url.png, mobile.png, 404-mobile.png 생성.
+
+## HTML 제작·검수 흐름 적용
+
+2026-10-26: 디렉토리 정리와 [Effective HTML의 html-prototype](https://github.com/plannotator/effective-html/blob/main/skills/html-prototype/SKILL.md) 원칙을 적용한 `examples/responsive-form.html` 추가. 기존 UI의 푸른 계열 색상과 시스템 폰트를 참고해 단일 폼을 배치한다. 큰 화면에서는 이름·이메일을 두 열로, 좁은 화면에서는 한 열로 전환한다. 테마는 `prefers-color-scheme`에 따라 변경한다. 모션·원격 API·전송·영구 저장 없이 입력 내용 확인에 집중한다.
+
+정적 모드는 비활성 입력과 안내를 표시한다. Chromium의 JavaScript 실행은 초기 렌더링 확인용 스냅샷이다. 입력 오류·완료·수정·키보드 조작은 `tests/artifact-browser.mjs`의 별도 loopback 브라우저 문서에서 검증한다. 테스트는 새 컨텍스트, 서비스 워커·다운로드·팝업·외부 요청 차단을 적용하며 외부 요청이 발생하면 실패한다. `textContent`를 통한 입력 내용 표시와 이름·이메일의 기본 유효성 검사를 사용한다.
+
+[Android testing-setup](https://github.com/android/skills/blob/main/testing/testing-setup/SKILL.md)의 화면 크기·테마·상태 조합 검사 관점만 차용한다. Android dp를 CSS px로 간주하거나 실제 기기·시스템 바·IME 검증으로 주장하지 않는다. `edge-to-edge`의 Compose·SDK 전제는 현재 프로젝트에 적용하지 않는다.
+
+직접 검사: `node tests/artifact-browser.mjs` 통과. 375 / 390 / 768 / 1440 CSS px 및 844 × 390 가로 방향, Light/Dark, 정상·오류·수정·완료, 긴 한국어 문구·포커스·키보드, 정적 업로드와 Chromium JS OFF/ON 확인.
+
+최종 검증: `npm run check`, `npm test` (11개), `npm run test:browser`, `npm run test:url`, `npm run test:secrets` 통과. 최종 모바일 주요 버튼 변경 후 `node tests/mobile-browser.mjs` 추가 통과. `npm start` 진입점·공개 경로 HTTP 200, 로컬 문서 링크 13개, 화면 캡처 확인. `test:url`은 최초 샌드박스 EACCES 이후 제한 밖에서 동일 명령을 재실행해 통과. 의존성·lock 파일 변경 없음.
+
+## UX·문구 정리
+
+앱의 중복 설명과 태그라인을 제거하고 주요 버튼·입력 label·현재 상태·오류를 중심으로 화면을 정리한다. HTML 열기·Chromium 검사는 모바일에서도 바로 표시하며 나머지 도구는 기존 메뉴에서 제공한다. 원본 재렌더링·Safe Area·글자 임계값은 native details의 더보기로 제공하고 검수 한계·지원 범위도 접어서 제공한다. 기본 샘플은 홍보용 랜딩 페이지 대신 검수 목록·내부 이동·확인 항목을 표시한다. 사용자 원본은 변경하지 않는다.
+
+공통 `toast`의 대화상자 오류 처리에 선택적인 입력 연결을 추가한다. URL·HTML·DPR 오류는 해당 필드에 포커스·스크롤을 이동하고 ARIA 오류 참조를 연결한다. 편집 또는 대화상자 종료 시 이전 오류를 정리한다. 예제 폼은 blur와 제출에서 같은 검증 함수를 사용하며 첫 제출 오류에만 포커스·스크롤을 이동한다. 입력 중 오류 반복·원격 전송·localStorage 저장은 하지 않는다.
+
+숫자·이메일 입력에 적합한 inputmode를 지정하고 Chromium 결과 이미지의 width/height를 설정한다. 금액·비밀번호·대용량 업로드·페이지 prefetch 같은 별도 제품 기능은 추가하지 않는다. 배포 전 점검과 미구축 운영 항목은 [PLAN.md](../PLAN.md#배포-전-확인-기록)에 기록한다.

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { createServer } from '../server.mjs';
+import { createServer } from '../server/server.mjs';
 test('loopback server serves only application files and validates Host', async t => {
   const server = createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
@@ -10,6 +10,8 @@ test('loopback server serves only application files and validates Host', async t
   assert.ok(home.headers.get('set-cookie').includes('HttpOnly')); assert.ok(home.headers.get('set-cookie').includes('SameSite=Strict'));
   assert.equal((await fetch(base + '/.git/config')).status, 404);
   assert.equal((await fetch(base + '/package.json')).status, 404);
+  for (const path of ['/server/server.mjs', '/server/public-resource.mjs', '/docs/Design.md', '/PLAN.md', '/examples/responsive-form.html', '/public/index.html']) assert.equal((await fetch(base + path)).status, 404, path);
+  for (const path of ['/app.js', '/profiles.js', '/security.js', '/sample.js', '/inspector.js', '/emulation-ui.js', '/public-url.js', '/styles.css']) assert.equal((await fetch(base + path)).status, 200, path);
   assert.equal((await fetch(base, { method: 'POST' })).status, 405);
   const status = await new Promise(resolve => { http.get(base, { headers: { Host: 'attacker.example' } }, res => { res.resume(); resolve(res.statusCode); }); });
   assert.equal(status, 403);

@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { writeFile, mkdir } from 'node:fs/promises';
-import { createServer } from '../server.mjs';
+import { createServer } from '../server/server.mjs';
 
 const remotePaths = [];
 const server = createServer({fetchResource:async url => {

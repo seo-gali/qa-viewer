@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createServer } from '../server.mjs';
+import { createServer } from '../server/server.mjs';
 
 const server = createServer();
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -18,6 +18,7 @@ async function paste(html) {
 try {
   await page.goto(base);
   await page.waitForFunction(() => document.getElementById('checks').children.length > 0);
+  await page.locator('#more-tools summary').click();
   assert.equal(await page.locator('iframe').getAttribute('sandbox'), 'allow-same-origin');
   const html = `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0}#fixture{width:100vw;height:100vh;background:#ddd}@media(max-width:400px){#fixture{background:rgb(255, 0, 0)}}.wide{width:428px}.tiny{font-size:10px}.outside{position:fixed;top:-20px}.clip{overflow:hidden;width:100px;height:30px}.clipped{width:180px;height:60px}.below{margin-top:1500px}</style><main id="fixture"><div class="wide">Overflow</div><span class="tiny">Tiny</span><a class="missing" href="#no-such-id">Missing</a><a class="valid" href="#fixture">Valid</a><img src="data:image/png;base64,broken" width="24" height="24" alt="broken fixture"><div class="outside">Fixed</div><div class="clip"><div class="clipped">Clipped</div></div><p class="below">Normal scroll content</p></main><script>parent.document.body.dataset.escaped='yes';document.querySelector('#fixture').remove();</script>`;
   await paste(html);
@@ -92,7 +93,7 @@ try {
   assert.equal(await page.locator('#device').inputValue(), 'iphone');
   await page.waitForFunction(() => document.querySelector('iframe').contentDocument?.querySelector('.wide'));
   console.log('PASS Phase 2: independent viewports, shared Fit, per-card QA/profile, 2–4 bounds, common rotation, source retention.');
-  await page.click('#paste'); await page.fill('#code', await (await import('../sample.js')).sample); await page.click('#apply-code');
+  await page.click('#paste'); await page.fill('#code', await (await import('../public/sample.js')).sample); await page.click('#apply-code');
   await page.selectOption('#device', 'iphone'); await page.selectOption('#scale', 'fit'); await page.uncheck('#safe');
   await page.fill('#min-font', '12'); await page.locator('#min-font').press('Tab');
   await page.waitForTimeout(300); await mkdir('artifacts', {recursive:true}); await page.evaluate(() => document.getElementById('toast').hidden = true); await page.screenshot({path:'artifacts/phase-1.png',fullPage:true});

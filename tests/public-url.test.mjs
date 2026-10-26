@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isPublicIPv4, validatePublicUrl } from '../public-url.js';
-import { fetchPublicResource } from '../public-resource.mjs';
+import { isPublicIPv4, validatePublicUrl } from '../public/public-url.js';
+import { fetchPublicResource } from '../server/public-resource.mjs';
 test('URL validation rejects credentials, private/reserved ranges, alternate IP syntax and ports', () => {
   for (const url of ['file:///etc/passwd','ftp://example.com','http://localhost','http://local.internal','http://app.local','http://127.0.0.1','http://0x7f000001','http://2130706433','http://0177.0.0.1','http://10.0.0.1','http://169.254.169.254','http://100.64.0.1','http://172.16.0.1','http://192.168.1.1','http://192.0.2.1','http://198.18.1.1','http://198.51.100.1','http://203.0.113.1','http://224.0.0.1','http://255.255.255.255','http://[::1]','http://[::ffff:127.0.0.1]','https://user:pass@example.com','http://example.com:8080']) assert.throws(()=>validatePublicUrl(url),url);
   assert.equal(validatePublicUrl('https://example.com/path#section'),'https://example.com/path');

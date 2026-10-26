@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { profiles, resolveProfile, fitScale, validDimension } from '../profiles.js';
+import { profiles, resolveProfile, fitScale, validDimension } from '../public/profiles.js';
 test('all profiles have bounded CSS dimensions and immutable rotated insets', () => {
   for (const p of profiles) { assert.ok(validDimension(p.width)); assert.ok(validDimension(p.height)); assert.equal(resolveProfile(p.id, undefined, true).width, p.height); }
   assert.deepEqual(resolveProfile('iphone', undefined, true).safe, [0, 59, 0, 34]);

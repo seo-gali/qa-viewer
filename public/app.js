@@ -6,14 +6,20 @@ import { setupEmulation } from './emulation-ui.js';
 import { validatePublicUrl } from './public-url.js';
 
 const $ = id => document.getElementById(id);
-const state = { html: sample, url: null, filename: 'field-notes.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'galaxy-ultra', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
+const state = { html: sample, url: null, filename: 'qa-sample.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'galaxy-ultra', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
 let toastTimer, scanTimer;
-export function toast(message, kind = 'error') {
+export function toast(message, kind = 'error', input) {
   const dialog = document.querySelector('dialog[open]');
   if (dialog && kind === 'error') {
     let feedback = dialog.querySelector('.dialog-error');
     if (!feedback) { feedback = document.createElement('p'); feedback.className = 'dialog-error'; feedback.setAttribute('role', 'alert'); dialog.append(feedback); }
-    feedback.textContent = message; return;
+    feedback.textContent = message;
+    if (input) {
+      feedback.id = `${dialog.id}-error`;
+      input.setAttribute('aria-invalid', 'true'); input.setAttribute('aria-errormessage', feedback.id);
+      input.focus(); input.scrollIntoView({ block: 'nearest' });
+    }
+    return;
   }
   $('toast').textContent = message; $('toast').className = `toast ${kind}`; $('toast').setAttribute('role', kind === 'error' ? 'alert' : 'status'); $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500);
 }
@@ -196,11 +202,11 @@ $('paste').addEventListener('click', () => { $('code').value = state.html; $('pa
 $('open-url').addEventListener('click', () => { $('url-input').value = state.url ?? ''; $('url-dialog').showModal(); });
 $('apply-url').addEventListener('click', () => {
   try { state.url = validatePublicUrl($('url-input').value.trim()); }
-  catch (error) { toast(error.message); return; }
+  catch (error) { toast(error.message, 'error', $('url-input')); return; }
   $('filename').textContent = new URL(state.url).hostname; $('source-state').textContent = 'URL preview'; $('url-dialog').close(); render(); toast('URL을 적용했습니다. 사이트의 iframe 허용 여부에 따라 표시됩니다.', 'success');
 });
 $('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('apply-url').click(); } });
-$('apply-code').addEventListener('click', () => { if (!$('code').value.trim()) return toast('HTML 코드를 입력해 주세요.'); if (loadHTML($('code').value, 'pasted-content.html', '붙여넣은 코드')) $('paste-dialog').close(); });
+$('apply-code').addEventListener('click', () => { if (!$('code').value.trim()) return toast('HTML 코드를 입력해 주세요.', 'error', $('code')); if (loadHTML($('code').value, 'pasted-content.html', '붙여넣은 코드')) $('paste-dialog').close(); else { $('code').focus(); $('code').scrollIntoView({ block: 'nearest' }); } });
 document.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); $('canvas').classList.add('dragover'); } });
 document.addEventListener('dragleave', e => { if (!e.relatedTarget) $('canvas').classList.remove('dragover'); });
 document.addEventListener('drop', e => { e.preventDefault(); $('canvas').classList.remove('dragover'); openFile(e.dataTransfer.files[0]); });
@@ -224,6 +230,13 @@ $('add-device').addEventListener('click', () => { if (state.selections.length >=
 new ResizeObserver(scaleCards).observe($('canvas'));
 $('mobile-menu').addEventListener('click', () => { const opened = $('toolbar').classList.toggle('mobile-open'); $('mobile-menu').setAttribute('aria-expanded', String(opened)); });
 const copyrightYear = String(new Date().getFullYear()); $('copyright-year').textContent = copyrightYear; $('copyright-year').dateTime = copyrightYear;
-document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('close', () => dialog.querySelector('.dialog-error')?.remove()));
+document.querySelectorAll('dialog').forEach(dialog => {
+  const clearError = () => {
+    dialog.querySelector('.dialog-error')?.remove();
+    for (const input of dialog.querySelectorAll('[aria-invalid]')) { input.removeAttribute('aria-invalid'); input.removeAttribute('aria-errormessage'); }
+  };
+  dialog.addEventListener('close', clearError);
+  dialog.addEventListener('input', clearError);
+});
 setupEmulation(() => ({ ...(state.url ? {url:state.url} : {html:state.html}), profile: state.selections[state.active], custom: state.custom[state.active], landscape: state.landscape, dpr: currentProfile().dpr, minFont: Number($('min-font').value), safeArea: $('safe').checked }), toast);
 render();

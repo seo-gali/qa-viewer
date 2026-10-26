@@ -4,7 +4,9 @@ HTML·공개 HTTPS 콘텐츠의 모바일 CSS viewport 비교 및 레이아웃 �
 
 ## 실행
 
-필수 환경: Node.js 22 이상, Playwright Chromium.
+필수 환경: 보안 패치가 적용된 Node.js 22 이상, Playwright Chromium.
+
+현재 검증 환경: Node.js v24.22.1. `engines` 제한 및 실행 버전 강제는 [후속 계획](PLAN.md)의 별도 항목.
 
 ```sh
 npm ci
@@ -40,11 +42,45 @@ npm start
 
 1. HTML 파일·코드·공개 HTTPS URL 선택.
 2. 기기 프로필 또는 Custom 크기 지정.
-3. 회전·Fit·Safe Area 조건에 따른 콘텐츠 확인.
+3. 회전·Fit 및 더보기의 Safe Area·최소 글자 기준에 따른 콘텐츠 확인.
 4. Compare를 통한 2–4개 기기 비교 및 카드별 검사 선택.
 5. Inspect 경고 선택에 따른 해당 요소 bounding box 확인.
 6. Chromium 검사의 DPR·테마·JavaScript 조건 지정 및 스냅샷 검사.
 7. PNG·WebP·JSON 결과 다운로드.
+
+## HTML 제작·검수 흐름
+
+[Effective HTML](https://github.com/plannotator/effective-html)의 단일 HTML·반응형·접근성·상태별 브라우저 검증 원칙 적용. [Android Skills](https://github.com/android/skills)의 화면 크기·테마·상태별 테스트 관점 참고. 외부 스킬 전역 설치 및 Android SDK·Compose·Gradle 의존성 추가 없음.
+
+| 지침 | 적용 범위 |
+| --- | --- |
+| `html-wireframe` | 화면 구조·정보 순서·작업 흐름 검토를 위한 단일 HTML 제작 참고 |
+| `html-prototype` | [반응형 신청 폼](examples/responsive-form.html)의 정상·오류·완료·내용 수정 상태 구현 |
+| Android `testing-setup` | 화면 크기·가로 방향·테마·상태별 검증 조합 참고 |
+| Android `edge-to-edge` | 시스템 영역의 콘텐츠 가림을 확인하는 수동 검수 관점 참고·네이티브 코드 적용 제외 |
+
+예제 검수 순서:
+
+1. `npm start` 실행 후 파일 열기에서 `examples/responsive-form.html` 선택.
+2. 기기 프로필 또는 Custom 크기를 이용한 375·390·768·1440 CSS px 비교 및 회전 확인.
+3. 정적 미리보기의 입력 비활성 상태·긴 한국어 문구·줄바꿈·가로 넘침 확인.
+4. Chromium 검사에서 Light/Dark 및 JavaScript OFF/ON의 초기 화면 스냅샷 확인.
+5. 독립 브라우저에서 예제 파일을 열거나 `node tests/artifact-browser.mjs` 실행을 통한 입력 오류·완료·수정·키보드·포커스 이동 확인.
+
+예제의 인라인 CSS·JavaScript 및 시스템 폰트 사용. 외부 CDN·API·저장 기능·실제 신청 전송 없음. 실제 개인정보 대신 검수용 내용 사용 권장. 예제·문서·서버 소스의 로컬 HTTP 제공 제외 및 기존 파일 허용 목록 유지.
+
+Chromium 검사 결과의 스냅샷 제공에 따른 클릭 흐름 조작 미지원. 정적 iframe의 스크립트 차단 및 HTML 모드의 외부 통신 차단 유지. Android dp 수치의 CSS px 프로필 직접 전용 및 실제 시스템 바·소프트 키보드 재현 제외.
+
+## UX 적용
+
+- HTML 열기·Chromium 검사의 주요 버튼 강조와 모바일 상시 표시. 원본 재렌더링·Safe Area·글자 임계값의 더보기 배치.
+- 태그라인·중복 안내·보조 레이블 제거 및 기능명·동작·상태 중심의 문구 사용. 검수 한계와 지원 범위의 접이식 제공.
+- 기본 샘플의 홍보 문구·장식 대신 검수 목록·내부 링크·확인 항목 제공.
+- 예제 폼의 blur/제출 검증, 오류 입력의 포커스·스크롤 이동, 완료 후 수정 시 입력 내용 유지.
+- URL·HTML·DPR 입력 오류의 해당 필드 연결 및 포커스 이동. 숫자·이메일 입력의 키패드 지정과 결과 이미지의 공간 확보.
+- 원본·업로드·개인정보의 localStorage 임시 저장 제외 및 메모리 보관 정책 유지.
+
+프로덕션 배포 전 10개 점검 항목: [AGENTS.md](AGENTS.md#프로덕션-배포-전-점검). 현재 적용 여부와 후속 과제: [PLAN.md](PLAN.md#배포-전-확인-기록).
 
 ## 렌더링 계약
 
@@ -99,19 +135,24 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 | Phase 2 | 2–4개 기기 동시 비교 | 완료 |
 | Phase 3 | Playwright Chromium·URL 검사·스크린샷/QA 리포트·UI/보안 마감 | 완료 |
 | Phase 4 | 실제 기기 QR 미리보기 | 후속 범위 |
+| 유지보수 | 디렉토리 정리·HTML 제작 지침·검수 예제·UX 정리·회귀 검사 | 완료 |
+
+세부 작업 및 후속 항목: [PLAN.md](PLAN.md).
 
 ## 검증 결과
 
-검증 기준일: 2026-10-05.
+현재 변경 검증 기준일: 2026-10-26. Node.js v24.22.1 환경의 전체 회귀 검사 통과.
 
 | 명령 | 검증 범위 | 결과 |
 | --- | --- | --- |
 | `npm run check` | JavaScript/Node 모듈 구문 | 통과 |
 | `npm test` | 프로필·Custom·URL 주소·입력·세션·Origin·크기·rate limit·404 | 11개 통과 |
-| `npm run test:browser` | viewport/Fit 불변·업로드/드롭·격리·검사·비교·모바일 브라우저·UI | 통과 |
+| `npm run test:browser` | viewport/Fit·격리·비교·모바일 브라우저·UI·HTML 예제 상태/키보드/테마 | 통과 |
 | `npm run test:url` | example.com 실제 HTTPS 콘텐츠 및 Chromium 스냅샷 | 통과 |
 | `npm run test:secrets` | 전체 로컬 커밋 및 Git 추적 파일의 시크릿 파일/인식 키 패턴 | 발견 0건 |
-| `npm audit` | 설치 의존성의 알려진 취약점 | 0건 |
+| `npm audit` | 설치 의존성의 알려진 취약점 | 2026-10-05 기록: 0건·이번 의존성 변경 없음 |
+
+`npm start`의 이동한 진입점 및 기존 공개 경로 HTTP 200 확인. 로컬 문서 링크 13개 확인. `test:url` 최초 실행의 샌드박스 연결 차단(`EACCES`) 이후 제한 밖의 동일 검사 재실행 통과.
 
 주요 확인 항목:
 
@@ -122,26 +163,49 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 - iframe 삽입 차단 응답의 최상위 페이지 검사 및 URL CSS/스크립트 로딩.
 - 홈·비교·입력 대화상자·404의 320·375·390·768·1440px 바깥 가로 넘침 없음.
 - 실제 파일 열기 버튼·내부 링크·favicon·페이지 메타·저작권 연도·오류 메시지 확인.
-- GitHub 푸터 링크의 공개 HTTPS 응답 200 확인.
+- GitHub 푸터 링크의 공개 HTTPS 응답 200 확인: 2026-10-05 기록.
+- HTML 예제의 375·390·768·1440 CSS px 및 844 × 390 가로 방향·Light/Dark·긴 한국어 문구·입력 오류·완료·수정·키보드·포커스 이동·외부 요청 0건 확인.
+- 더보기의 키보드 조작, 모바일 주요 버튼 표시, URL·DPR 오류 포커스 및 편집 시 오류 정리 확인.
 
 브라우저 검증 후 `artifacts/`의 화면 캡처 생성 및 Git 제외:
 
 - `phase-1.png`, `phase-2.png`, `phase-3.png` — 단계별 화면.
 - `phase-3-url.png`, `phase-3-live-url.png` — URL 검사.
 - `mobile.png`, `404-mobile.png` — 모바일 UI.
+- `form-390-light.png`, `form-390-dark.png`, `form-1440-light.png`, `form-1440-dark.png` — 예제의 모바일·데스크톱 및 테마.
+- `form-success-light.png`, `form-success-dark.png`, `form-qa-js-off.png`, `form-qa-js-on.png` — 예제의 완료 화면 및 Chromium 스냅샷.
+
+## 디렉토리 구조
+
+```text
+qa-viewer/
+├─ public/                 브라우저 UI·정적 자산·브라우저/서버 공용 순수 모듈
+├─ server/                 로컬 HTTP 서버·입력 검증·Chromium·공개 URL 요청
+├─ examples/               외부 통신 없는 단일 HTML 검수 예제
+├─ tests/                  단위·브라우저·URL·시크릿 검사
+├─ docs/Design.md          설계·렌더링 계약·완료 기록
+├─ README.md               실행·사용·검증 안내
+├─ PLAN.md                 적용 계획·완료 상태·후속 항목
+├─ AGENTS.md               에이전트 작업 원칙
+└─ package.json            실행 및 검증 명령
+```
+
+기존 웹 경로 `/app.js`·`/styles.css` 등의 유지. 디스크의 `public/` 경로 및 서버 파일의 임의 노출 없음.
 
 ## 주요 파일
 
 | 파일 | 역할 |
 | --- | --- |
-| `index.html`, `styles.css`, `app.js` | 뷰어 UI·반응형 화면·상태 관리 |
-| `profiles.js`, `inspector.js`, `security.js` | 프로필·DOM 검사·정적 문서 격리 |
-| `server.mjs`, `emulation-config.mjs`, `emulator.mjs` | 로컬 서버·API 검증·Chromium 검사 |
-| `public-url.js`, `public-resource.mjs` | URL 검증·공개 HTTPS 리소스 접근 |
-| `emulation-ui.js` | 검사 결과·다운로드·WebP 압축 |
-| `sample.js`, `404.html`, `favicon.svg` | 샘플 콘텐츠·404·파비콘 |
+| `public/index.html`, `public/styles.css`, `public/app.js` | 뷰어 UI·반응형 화면·상태 관리 |
+| `public/profiles.js`, `public/inspector.js`, `public/security.js` | 프로필·DOM 검사·정적 문서 격리 |
+| `server/server.mjs`, `server/emulation-config.mjs`, `server/emulator.mjs` | 로컬 서버·API 검증·Chromium 검사 |
+| `public/public-url.js`, `server/public-resource.mjs` | URL 검증·공개 HTTPS 리소스 접근 |
+| `public/emulation-ui.js` | 검사 결과·다운로드·WebP 압축 |
+| `public/sample.js`, `public/404.html`, `public/favicon.svg` | 기본 샘플·404·파비콘 |
+| `examples/responsive-form.html`, `tests/artifact-browser.mjs` | 검수용 프로토타입·상태 및 키보드 회귀 검사 |
 | [AGENTS.md](AGENTS.md) | 실행·승인·격리·검증 원칙 |
-| [Design.md](Design.md) | 제품 구조·렌더링 계약·보안 설계·완료 기록 |
+| [PLAN.md](PLAN.md) | 구조 정리·HTML 지침 적용 계획·후속 항목 |
+| [docs/Design.md](docs/Design.md) | 제품 구조·렌더링 계약·보안 설계·완료 기록 |
 
 ## 공식 근거
 
@@ -150,3 +214,6 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 - [MDN viewport meta](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/meta/name/viewport).
 - [MDN CSS env()](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Values/env).
 - [MDN iframe sandbox](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/iframe#sandbox).
+- [Effective HTML: html-prototype](https://github.com/plannotator/effective-html/blob/main/skills/html-prototype/SKILL.md).
+- [Android Skills: testing-setup](https://github.com/android/skills/blob/main/testing/testing-setup/SKILL.md).
+- [Android Skills: edge-to-edge](https://github.com/android/skills/blob/main/system/edge-to-edge/SKILL.md).

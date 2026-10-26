@@ -88,13 +88,13 @@ export function createServer({ fetchResource } = {}) {
     if (!file) {
       try {
         const year = String(new Date().getFullYear());
-        const page = (await readFile(new URL('404.html', import.meta.url), 'utf8')).replace('<time id="copyright-year" datetime="2026">2026</time>', `<time id="copyright-year" datetime="${year}">${year}</time>`);
+        const page = (await readFile(new URL('../public/404.html', import.meta.url), 'utf8')).replace('<time id="copyright-year" datetime="2026">2026</time>', `<time id="copyright-year" datetime="${year}">${year}</time>`);
         res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' }).end(req.method === 'HEAD' ? undefined : page);
       } catch { res.writeHead(404).end('Page not found'); }
       return;
     }
     try {
-      const body = await readFile(new URL(file[0], import.meta.url));
+      const body = await readFile(new URL('../public/' + file[0], import.meta.url));
       if (path === '/') res.setHeader('Set-Cookie', `qa_session=${session}; Path=/; HttpOnly; SameSite=Strict`);
       res.writeHead(200, { 'Content-Type': `${file[1]}; charset=utf-8` });
       res.end(req.method === 'HEAD' ? undefined : body);

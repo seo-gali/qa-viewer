@@ -1,7 +1,7 @@
 import https from 'node:https';
 import { lookup } from 'node:dns/promises';
 import { createGunzip, createInflate, createBrotliDecompress } from 'node:zlib';
-import { isPublicIPv4, validatePublicUrl } from './public-url.js';
+import { isPublicIPv4, validatePublicUrl } from '../public/public-url.js';
 
 export async function fetchPublicResource(value, { signal, userAgent, maxBytes = 4 * 1024 * 1024 } = {}) {
   const url = new URL(validatePublicUrl(value));

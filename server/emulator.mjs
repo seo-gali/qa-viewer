@@ -1,7 +1,7 @@
 import { chromium, devices } from 'playwright';
 import { access } from 'node:fs/promises';
-import { inspectDocument } from './inspector.js';
-import { previewPolicy } from './security.js';
+import { inspectDocument } from '../public/inspector.js';
+import { previewPolicy } from '../public/security.js';
 import { fetchPublicResource } from './public-resource.mjs';
 
 export async function browserAvailable() {

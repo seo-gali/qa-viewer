@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateEmulation } from '../emulation-config.mjs';
+import { validateEmulation } from '../server/emulation-config.mjs';
 test('emulation preserves source and applies bounded mobile settings', () => {
   const html = '<meta name="viewport" content="width=500"><div>한글</div>';
   const config = validateEmulation({html, profile:'fold', landscape:true, dpr:2.5, scripts:true, safeArea:true, colorScheme:'dark'});

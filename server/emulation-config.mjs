@@ -1,5 +1,5 @@
-import { resolveProfile } from './profiles.js';
-import { validatePublicUrl } from './public-url.js';
+import { resolveProfile } from '../public/profiles.js';
+import { validatePublicUrl } from '../public/public-url.js';
 
 export function validateEmulation(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('JSON 객체가 필요합니다.');

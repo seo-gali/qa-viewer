@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 export function setupEmulation(getInput, toast) {
   let result = null, controller = null;
-  function clearResult() { result = null; $('emulation-result').hidden = true; $('emulation-progress').textContent = '선택한 기기의 원본 HTML을 로컬 Chromium에서 검사합니다.'; }
+  function clearResult() { result = null; $('emulation-result').hidden = true; $('emulation-progress').textContent = ''; }
   $('emulate').addEventListener('click', () => {
     if (!controller) { clearResult(); $('emulation-dpr').value = getInput().dpr; }
     $('emulation-dialog').showModal();
@@ -10,13 +10,14 @@ export function setupEmulation(getInput, toast) {
   $('run-emulation').addEventListener('click', async () => {
     $('emulation-dialog').querySelector('.dialog-error')?.remove();
     const input = { ...getInput(), dpr: Number($('emulation-dpr').value), scripts: $('emulation-scripts').checked, colorScheme: $('emulation-color').value };
-    if (!Number.isFinite(input.dpr) || input.dpr < 1 || input.dpr > 4) return toast('DPR은 1–4 사이의 숫자여야 합니다.');
+    if (!Number.isFinite(input.dpr) || input.dpr < 1 || input.dpr > 4) return toast('DPR은 1–4 사이의 숫자로 입력하세요.', 'error', $('emulation-dpr'));
     controller = new AbortController();
     $('run-emulation').disabled = true; clearResult(); $('emulation-progress').textContent = '로컬 Chromium 검사 중… (최대 20초)';
     try {
       const response = await fetch('/api/emulate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), signal: controller.signal });
       const data = await response.json(); if (!response.ok) throw new Error(data.error ?? '검사 실패');
       result = data;
+      $('emulation-image').width = data.profile.width; $('emulation-image').height = data.profile.height;
       $('emulation-image').src = data.image; $('emulation-image').alt = `${data.profile.name} Chromium 검사 스크린샷`;
       $('emulation-caption').textContent = `${data.profile.name} · ${data.profile.width} × ${data.profile.height} CSS px · ${data.settings.scripts ? 'JavaScript ON' : 'JavaScript OFF'}`;
       const metrics = [

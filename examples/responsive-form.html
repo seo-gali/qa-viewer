@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>디자인 검수 세션 · 신청 폼 프로토타입</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      background: var(--background);
+      --background: #f3f5fa;
+      --surface: #ffffff;
+      --text: #202838;
+      --muted: #48566d;
+      --border: #708098;
+      --accent: #304d95;
+      --on-accent: #ffffff;
+      --error: #ac263b;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #15171d;
+        --surface: #20232b;
+        --text: #dce1eb;
+        --muted: #b0bbce;
+        --border: #7988a2;
+        --accent: #b5c6ff;
+        --on-accent: #192244;
+        --error: #ffb1bc;
+      }
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; line-height: 1.7; }
+    header, main { width: min(100% - 40px, 720px); margin-inline: auto; }
+    header { padding-block: 36px 24px; border-bottom: 1px solid var(--border); }
+    header a { color: var(--accent); font-weight: 700; text-decoration: none; }
+    main { display: grid; gap: 24px; padding-block: 32px; }
+    h1 { font-size: 1.75rem; line-height: 1.3; }
+    h1, h2, p { margin: 0; }
+    h2 { font-size: 1.25rem; }
+    .intro, form, fieldset, #confirmation { display: grid; gap: 20px; align-content: start; min-width: 0; }
+    #mode, details { color: var(--muted); }
+    #mode:empty { display: none; }
+    summary { cursor: pointer; }
+    .panel { background: var(--surface); padding: 28px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+    fieldset { padding: 0; margin: 0; border: 0; }
+    legend { font-weight: 700; margin-bottom: 20px; }
+    .field { display: grid; gap: 6px; min-width: 0; }
+    label { font-weight: 600; }
+    input, select, textarea, button { font: inherit; }
+    input, select, textarea { width: 100%; min-width: 0; color: var(--text); background: var(--surface); padding: 10px 12px; border: 1px solid var(--border); border-radius: 4px; }
+    textarea { min-height: 130px; resize: vertical; }
+    button { min-height: 48px; padding: 10px 18px; color: var(--on-accent); background: var(--accent); border: 0; border-radius: 4px; cursor: pointer; }
+    button:disabled { cursor: default; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+    [aria-invalid="true"] { border: 2px solid var(--error); }
+    .error { color: var(--error); font-weight: 400; }
+    .error:empty { display: none; }
+    p, label, dd { overflow-wrap: anywhere; }
+    dl { display: grid; gap: 8px; margin: 0; }
+    dt { font-weight: 700; }
+    dd { margin: 0 0 12px; white-space: pre-wrap; }
+    @media (min-width: 700px) {
+      fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .field:nth-of-type(n+3), fieldset button { grid-column: 1 / -1; }
+    }
+    @media (max-width: 699px) {
+      main { padding-block: 24px; }
+      .panel { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <header><a href="#content">QA Viewer</a></header>
+  <main id="content">
+    <section class="intro" aria-labelledby="title">
+      <h1 id="title">검수 세션 신청</h1>
+    </section>
+    <div class="panel">
+      <form id="request" novalidate>
+        <fieldset id="fields" disabled>
+          <legend>신청 정보</legend>
+          <div class="field">
+            <label for="name">이름 · 필수</label>
+            <input id="name" name="name" autocomplete="name" required aria-describedby="name-error">
+            <span id="name-error" class="error"></span>
+          </div>
+          <div class="field">
+            <label for="email">이메일 · 필수</label>
+            <input id="email" name="email" type="email" inputmode="email" autocomplete="email" required aria-describedby="email-error">
+            <span id="email-error" class="error"></span>
+          </div>
+          <div class="field">
+            <label for="topic">검수 주제</label>
+            <select id="topic" name="topic">
+              <option>반응형 화면과 긴 한국어 문구</option>
+              <option>입력 오류 안내와 키보드 접근성</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="memo">함께 확인할 내용</label>
+            <textarea id="memo" name="memo">작은 화면에서 긴 한국어 안내 문구가 자연스럽게 줄바꿈되고, 입력 오류를 수정한 뒤에도 기존 작성 내용이 유지되는지 확인하고 싶습니다.</textarea>
+          </div>
+          <button type="submit">입력 내용 확인</button>
+        </fieldset>
+        <p id="mode" role="status">JavaScript 꺼짐 · 정적 미리보기</p>
+      </form>
+      <section id="confirmation" aria-labelledby="confirmed-title" hidden>
+        <h2 id="confirmed-title" tabindex="-1">입력 확인 완료</h2>
+        <dl>
+          <dt>이름</dt><dd id="confirmed-name"></dd>
+          <dt>이메일</dt><dd id="confirmed-email"></dd>
+          <dt>검수 주제</dt><dd id="confirmed-topic"></dd>
+          <dt>함께 확인할 내용</dt><dd id="confirmed-memo"></dd>
+        </dl>
+        <button id="edit" type="button">내용 수정</button>
+      </section>
+      <details><summary>예제 정보</summary><p>검수용 폼입니다. 실제 신청 전송과 저장은 하지 않습니다.</p></details>
+    </div>
+  </main>
+  <script>
+    const form = document.getElementById('request');
+    const fields = document.getElementById('fields');
+    const mode = document.getElementById('mode');
+    const confirmation = document.getElementById('confirmation');
+    fields.disabled = false;
+    mode.textContent = '';
+    function validateField(field) {
+      if (field.id === 'name') field.value = field.value.trim();
+      const valid = field.validity.valid;
+      field.setAttribute('aria-invalid', String(!valid));
+      document.getElementById(field.id + '-error').textContent = valid ? '' : field.id === 'name' ? '이름을 입력하세요.' : '올바른 이메일 주소를 입력하세요.';
+    }
+    for (const id of ['name', 'email']) document.getElementById(id).addEventListener('blur', event => validateField(event.target));
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      const name = document.getElementById('name');
+      const email = document.getElementById('email');
+      for (const field of [name, email]) validateField(field);
+      const invalid = form.querySelector('[aria-invalid="true"]');
+      if (invalid) {
+        mode.textContent = '표시된 입력 항목을 확인하고 다시 시도하세요.';
+        invalid.focus();
+        invalid.scrollIntoView({ block: 'center' });
+        return;
+      }
+      for (const id of ['name', 'email', 'topic', 'memo']) document.getElementById('confirmed-' + id).textContent = document.getElementById(id).value;
+      form.hidden = true;
+      confirmation.hidden = false;
+      document.getElementById('confirmed-title').focus();
+    });
+    document.getElementById('edit').addEventListener('click', () => {
+      confirmation.hidden = true;
+      form.hidden = false;
+      mode.textContent = '';
+      document.getElementById('name').focus();
+    });
+  </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createServer } from '../server.mjs';
+import { createServer } from '../server/server.mjs';
 const server=createServer(); await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const base=`http://127.0.0.1:${server.address().port}`;
 const browser=await chromium.launch(); const page=await browser.newPage();
@@ -21,13 +21,25 @@ try {
     const links=await page.locator('a[href]').evaluateAll(els=>els.map(el=>el.getAttribute('href')).filter(href=>!href.startsWith('https:')));
     for(const href of links) assert.equal((await page.request.get(new URL(href,base).href)).status(),200,href);
     assert.equal((await page.request.get(base+'/favicon.svg')).status(),200);
-    if(width<760) { assert.equal(await page.locator('#open').isVisible(),false); await page.click('#mobile-menu'); assert.equal(await page.locator('#mobile-menu').getAttribute('aria-expanded'),'true'); assert.equal(await page.locator('#open').isVisible(),true); await noOverflow(`expanded menu ${width}`); }
+    if(width<760) { assert.equal(await page.locator('#open').isVisible(),true); assert.equal(await page.locator('#emulate').isVisible(),true); assert.equal(await page.locator('#paste').isVisible(),false); await page.click('#mobile-menu'); assert.equal(await page.locator('#mobile-menu').getAttribute('aria-expanded'),'true'); assert.equal(await page.locator('#paste').isVisible(),true); await noOverflow(`expanded menu ${width}`); }
+    assert.equal(await page.locator('.product-label,.canvas-note,.panel-intro,.inspection-note').count(),0);
+    assert.equal(await page.locator('#safe').isVisible(),false);
+    await page.locator('#more-tools summary').focus(); await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#safe').isVisible(),true); await noOverflow(`more tools ${width}`);
+    await page.keyboard.press('Enter'); assert.equal(await page.locator('#safe').isVisible(),false);
     await page.click('#compare'); await page.waitForTimeout(200); await noOverflow(`compare ${width}`);
     await page.click('#paste'); await noOverflow(`paste dialog ${width}`); await page.getByRole('button',{name:'닫기',exact:true}).click();
     await page.click('#open-url'); await noOverflow(`URL dialog ${width}`);
     await page.fill('#url-input','http://example.com'); await page.click('#apply-url'); assert.equal(await page.locator('#url-dialog .dialog-error').isVisible(),true); assert.ok((await page.locator('#url-dialog .dialog-error').textContent()).includes('HTTPS')); await noOverflow(`URL error ${width}`);
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'url-input');
+    assert.equal(await page.locator('#url-input').getAttribute('aria-invalid'),'true');
+    await page.fill('#url-input','https://example.com'); assert.equal(await page.locator('#url-input').getAttribute('aria-invalid'),null);
     await page.getByRole('button',{name:'URL 입력 닫기',exact:true}).click();
-    await page.click('#emulate'); await noOverflow(`emulation dialog ${width}`); await page.getByRole('button',{name:'브라우저 검사 닫기',exact:true}).click();
+    await page.click('#emulate'); await noOverflow(`emulation dialog ${width}`);
+    await page.fill('#emulation-dpr','0'); await page.click('#run-emulation');
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'emulation-dpr');
+    assert.equal(await page.locator('#emulation-dpr').getAttribute('aria-invalid'),'true');
+    await page.getByRole('button',{name:'브라우저 검사 닫기',exact:true}).click();
     await page.goto(base+'/not-a-page'); assert.ok((await page.title()).includes('찾을 수 없습니다')); await noOverflow(`404 ${width}`); await page.getByRole('link',{name:'작업 공간으로 돌아가기 →'}).click(); assert.equal(new URL(page.url()).pathname,'/');
   }
   await page.setViewportSize({width:390,height:844}); await page.goto(base); await page.waitForTimeout(200); await mkdir('artifacts',{recursive:true}); await page.screenshot({path:'artifacts/mobile.png',fullPage:true});
