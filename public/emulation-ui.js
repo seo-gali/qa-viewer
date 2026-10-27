@@ -1,9 +1,15 @@
 const $ = id => document.getElementById(id);
+export async function capture(input, signal) {
+  const response = await fetch('/api/emulate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), signal });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error ?? '검사 실패');
+  return data;
+}
 export function setupEmulation(getInput, toast) {
   let result = null, controller = null;
   function clearResult() { result = null; $('emulation-result').hidden = true; $('emulation-progress').textContent = ''; }
   $('emulate').addEventListener('click', () => {
-    if (!controller) { clearResult(); $('emulation-dpr').value = getInput().dpr; }
+    if (!controller) { clearResult(); $('emulation-dpr').value = getInput().dpr; $('emulation-scripts').checked = getInput().scripts; }
     $('emulation-dialog').showModal();
   });
   $('emulation-dialog').addEventListener('close', () => { controller?.abort(); });
@@ -14,8 +20,7 @@ export function setupEmulation(getInput, toast) {
     controller = new AbortController();
     $('run-emulation').disabled = true; clearResult(); $('emulation-progress').textContent = '로컬 Chromium 검사 중… (최대 20초)';
     try {
-      const response = await fetch('/api/emulate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input), signal: controller.signal });
-      const data = await response.json(); if (!response.ok) throw new Error(data.error ?? '검사 실패');
+      const data = await capture(input, controller.signal);
       result = data;
       $('emulation-image').width = data.profile.width; $('emulation-image').height = data.profile.height;
       $('emulation-image').src = data.image; $('emulation-image').alt = `${data.profile.name} Chromium 검사 스크린샷`;

@@ -29,14 +29,20 @@
 브라우저는 매 검사마다 격리하고 종료한다. HTML의 외부 네트워크와 서버 파일 접근은 route 차단한다. 사용자 스크립트 실행은 기본 꺼짐이며 선택적으로 활성화한다. CSP response sandbox는 top-level 문서에 적용하며 allow-same-origin은 해당 격리 브라우저 컨텍스트 안의 임시 origin만 유지한다. 정적 뷰어의 iframe에서 allow-scripts와 allow-same-origin을 동시에 쓰지 않는 원칙과 구분한다. 콘텐츠는 디스크에 쓰지 않는다. 신뢰할 수 없는 코드를 운영 서비스에서 실행하는 보안 경계로 사용하지 않는다.
 
 ## URL 모드와 보안
-공개 HTTPS URL을 직접 iframe에 표시한다. 사이트의 frame-ancestors / X-Frame-Options 정책을 우회하지 않는다. cross-origin DOM은 읽을 수 없으므로 검사 미실행 상태를 명시한다. 같은 URL을 Chromium 검사에서는 최상위 페이지로 열어 스크린샷과 DOM QA를 반환한다.
+공개 HTTPS URL은 기존 Chromium API의 최상위 페이지로 열어 본 화면에 스크린샷과 DOM QA를 자동 표시한다. 원격 iframe을 사용하지 않으며 사이트의 frame-ancestors / X-Frame-Options는 수정하지 않는다. URL fragment를 보존한다. JavaScript는 URL 입력에서 명시적으로 선택하며 기본 OFF다. 붙여넣기의 JavaScript 선택도 같은 API를 사용하되 외부 통신 차단을 유지한다. 스냅샷의 버튼·링크 조작·DOM 요소 강조는 지원하지 않는다.
+
+`emulation-ui.js`의 capture가 API 요청·응답 처리를 공유한다. app.js는 기존 generation으로 이전 화면 결과를 버리고 API 동시 검사 1개에 맞춰 카드 검사를 순차 실행한다. 진행 중인 요청은 완료를 기다리며 오래된 카드의 후속 요청은 생략한다. 불러오기 실패 시 원인과 재시도 버튼을 표시한다. 최소 글자·Safe Area 변경 시 스냅샷도 재검사한다.
+
+기기 목록은 설치된 Playwright의 구체적인 모델을 사용한다. CSS 크기는 screen이 있으면 screen, 없으면 viewport를 사용하며 DPR·UA도 해당 모델을 참조한다. 단위 테스트에서 정의 일치를 검사한다. 주소창·OS·실제 Safari·물리 픽셀 재현을 뜻하지 않는다. 임의 너비 목록은 화면에서 제거하되 기존 Generic API 프로필은 유지한다. 직접 입력은 계속 지원한다. Safe Area·cutout·hinge는 참고 시각화다.
+
+JavaScript를 선택한 URL은 DOMContentLoaded 후 네트워크 유휴를 최대 3초 기다린다. 주기적 요청 사이트에서는 제한 후 촬영하며 완전 로딩을 보장하지 않는다. 2026-10-27 실주소 검사에서 hourboard·ktwiz의 화면 표시와 데이터 로딩을 확인했다. ktwiz의 POST 1건은 정책상 차단했고 입력 fragment는 유지했으나 해당 사이트 HTML에 boardSec 대상 ID가 없었다. 앱이나 원격 사이트에 임의 ID를 추가하지 않았다.
 
 public-url.js는 자격 증명·비표준 포트·사설 및 예약 IP·IPv6·HTTPS 다운그레이드를 거부한다. public-resource.mjs는 각 초기 요청·redirect·리소스에서 공개 IPv4 DNS 결과를 확인하고 실제 소켓 주소를 고정한다. 원격 Cookie/Authorization은 전달하지 않는다. 모든 요청은 GET만 허용하며 동시 원격 연결 4개, 최대 60개 요청, 리소스별 4MB / 합계 32MB를 제한한다. 인증·POST API·서비스 워커·팝업·중첩 프레임·다운로드는 지원하지 않는다. 일부 SPA 및 봇 차단 사이트는 완전 렌더링이 불가능하다.
 
 로컬 API는 127.0.0.1 바인딩, 명시적 Host, 동일 Origin + JSON, 메모리 세션 쿠키, 일정 시간 비교 인증, 분당 20회, 동시 검사 1개, 총 20초 제한을 사용한다. HTML 2MB / JSON 3MB, 설정 필드 allowlist와 값 범위 검증을 적용한다. 응답은 사용자 코드·내부 stack trace·로컬 경로를 노출하지 않는 오류 코드로 정리한다. 사용자 보고 텍스트는 textContent로 출력한다. CSP·nosniff·DENY·Permissions-Policy·CORP·COOP·Referrer-Policy를 사용한다. 쿠키는 HttpOnly / SameSite=Strict이며 loopback HTTP 특성상 Secure / HSTS는 적용하지 않는다. DB·영구 저장·API 키·계정·비밀번호가 없으므로 RLS·암호화 저장·비밀번호 해싱·로그인 봇 보호·SQL 파라미터화는 적용 대상이 아니다.
 
 ## UI 마감과 접근성
-320px부터 홈·비교·대화상자·404의 바깥 가로 넘침을 방지한다. 비교 콘텐츠와 100% 화면의 작업 공간 스크롤은 유지한다. 모바일 도구 메뉴에 aria-expanded / aria-controls, 입력에 label, 결과 및 오류에 status / alert를 제공한다. 페이지 제목·메타 설명·SVG 파비콘·홈 로고·푸터 링크·자동 저작권 연도·404 복귀 링크를 제공한다. 샘플 링크는 실제 내부 ID를 가리키며 CTA는 작동하는 anchor다. PNG는 CSS pixel 크기로 저장하고 브라우저 Canvas WebP 85% 압축 저장을 추가한다.
+320px부터 홈·비교·대화상자·404의 바깥 가로 넘침을 방지한다. 비교 콘텐츠와 100% 화면의 작업 공간 스크롤은 유지한다. 별도 상단 헤더와 더보기를 제거하고 로고를 HTML 열기 왼쪽에 배치한다. 입력·기기·설정은 모바일에서도 줄바꿈으로 표시한다. 입력에 label, 결과 및 오류에 status / alert를 제공한다. 페이지 제목·메타 설명·SVG 파비콘·홈 로고·푸터 링크·자동 저작권 연도·404 복귀 링크를 제공한다. 샘플 링크는 실제 내부 ID를 가리키며 CTA는 작동하는 anchor다. PNG는 CSS pixel 크기로 저장하고 브라우저 Canvas WebP 85% 압축 저장을 추가한다.
 
 ## 완료 기록
 - Phase 1: 완료. npm run check, npm test (4개), npm run test:browser 통과. CSS viewport / Fit 불변·입력·검사·격리를 Chromium에서 확인. artifacts/phase-1.png 생성.
@@ -57,7 +63,7 @@ public-url.js는 자격 증명·비표준 포트·사설 및 예약 IP·IPv6·HT
 
 ## UX·문구 정리
 
-앱의 중복 설명과 태그라인을 제거하고 주요 버튼·입력 label·현재 상태·오류를 중심으로 화면을 정리한다. HTML 열기·Chromium 검사는 모바일에서도 바로 표시하며 나머지 도구는 기존 메뉴에서 제공한다. 원본 재렌더링·Safe Area·글자 임계값은 native details의 더보기로 제공하고 검수 한계·지원 범위도 접어서 제공한다. 기본 샘플은 홍보용 랜딩 페이지 대신 검수 목록·내부 이동·확인 항목을 표시한다. 사용자 원본은 변경하지 않는다.
+앱의 중복 설명과 태그라인을 제거하고 주요 버튼·입력 label·현재 상태·오류를 중심으로 화면을 정리한다. 모든 도구는 접는 메뉴 없이 표시하고 검수 한계·지원 범위만 접어서 제공한다. 기본 샘플은 홍보용 랜딩 페이지 대신 검수 목록·내부 이동·확인 항목을 표시한다. 사용자 원본은 변경하지 않는다.
 
 공통 `toast`의 대화상자 오류 처리에 선택적인 입력 연결을 추가한다. URL·HTML·DPR 오류는 해당 필드에 포커스·스크롤을 이동하고 ARIA 오류 참조를 연결한다. 편집 또는 대화상자 종료 시 이전 오류를 정리한다. 예제 폼은 blur와 제출에서 같은 검증 함수를 사용하며 첫 제출 오류에만 포커스·스크롤을 이동한다. 입력 중 오류 반복·원격 전송·localStorage 저장은 하지 않는다.
 
@@ -72,3 +78,5 @@ public-url.js는 자격 증명·비표준 포트·사설 및 예약 IP·IPv6·HT
 로컬 성능 수치·Chrome DevTools MCP 설치 전 검토안은 [chrome-devtools.md](chrome-devtools.md)에 기록한다. MCP 설치와 전역 연결 변경은 승인 전 미실시. 공개 SEO는 현재 loopback 도구와 분리하며 초기 정적 HTML 제공을 SSR 구현으로 간주하지 않는다. 기존 불일치 두 건과 런타임 메타데이터 차이는 PLAN에 기록한다.
 
 보완 최종 검증: `npm run check`, `npm test` (14개), `npm run test:browser`, `npm run test:url`, `npm run test:secrets` 종료 코드 0. 서버·공개 리소스 진입점에서 모의 24.22.0 차단 및 실제 v24.22.1의 HTTP 200 확인. 실제 구버전 바이너리 설치 검증은 미실시. 로컬 문서 링크 15개 확인. 의존성 버전·lock 파일·전역 MCP 설정 변경 없음.
+
+2026-10-27 URL·화면 수정 최종 검증: `npm run check`, `npm test` (15개), `npm run test:browser` (5개 검사), `npm run test:url`, `npm run test:secrets`, `git diff --check` 종료 코드 0. source-preview-browser.mjs에서 삽입 차단 URL·fragment·지연 GET·POST 차단·모델 변경·순차 비교·실패/복구·DOCTYPE 인라인 JS·외부 통신 차단을 검증했다. 사용자 제공 두 실주소는 별도 로컬 UI 검사에서 스냅샷 표시를 확인했다. 붙여넣은 전체 원본 미제공으로 해당 문서 자체의 재현은 미실시했다.

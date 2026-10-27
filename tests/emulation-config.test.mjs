@@ -4,7 +4,7 @@ import { validateEmulation } from '../server/emulation-config.mjs';
 test('emulation preserves source and applies bounded mobile settings', () => {
   const html = '<meta name="viewport" content="width=500"><div>한글</div>';
   const config = validateEmulation({html, profile:'fold', landscape:true, dpr:2.5, scripts:true, safeArea:true, colorScheme:'dark'});
-  assert.equal(config.html, html); assert.equal(config.profile.width, 884); assert.equal(config.profile.hinge, 'horizontal'); assert.equal(config.dpr, 2.5);
+  assert.equal(config.html, html); assert.equal(config.profile.width, 1080); assert.equal(config.profile.hinge, 'horizontal'); assert.equal(config.dpr, 2.5);
 });
 test('emulation rejects oversized input and mistyped or unbounded settings', () => {
   for (const input of [null, [], {}, {html:' '}, {html:'a'.repeat(2*1024*1024+1)}, {html:'x',profile:'bad'}, {html:'x',dpr:0}, {html:'x',dpr:'3'}, {html:'x',dpr:Infinity}, {html:'x',scripts:'true'}, {html:'x',minFont:33}, {html:'x',colorScheme:'unknown'}, {html:'x',profile:'custom',custom:{width:100,height:800}}]) assert.throws(() => validateEmulation(input));

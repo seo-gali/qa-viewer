@@ -1,6 +1,6 @@
 # QA Viewer 작업 계획
 
-기준일: 2026-10-26. 디렉토리 정리·HTML 지침 적용·UX 개선 및 전체 회귀 검증 완료.
+기준일: 2026-10-27. 디렉토리 정리·HTML 지침·UX 개선에 이어 URL 자동 검사·붙여넣기 JS 선택·모델별 프로필·도구 모음 수정 및 전체 회귀 검증 완료.
 
 ## 이번 적용 범위
 
@@ -34,7 +34,7 @@
 - [x] `npm run test:browser`: 기존 검사와 신규 HTML 예제 검사 통과, 종료 코드 0.
 - [x] `npm run test:url`: 공개 example.com·390px·DPR 3·1개 리소스 통과. 샌드박스의 EACCES 이후 제한 밖 재실행, 종료 코드 0.
 - [x] `npm run test:secrets`: 새 파일을 포함한 Git 인덱스와 이력 검사, 시크릿 파일·알려진 키 패턴 0건.
-- [x] `node tests/mobile-browser.mjs`: 최종 모바일 주요 버튼·더보기·오류 포커스 변경 재검증, 종료 코드 0.
+- [x] `node tests/mobile-browser.mjs`: 모바일 도구 모음·오류 포커스 변경 재검증, 종료 코드 0. 이후 더보기·모바일 메뉴 제거는 아래 2026-10-27 기록 참조.
 - [x] `npm start`: 이동한 진입점과 기존 웹 경로의 HTTP 200 확인, 임시 서버 종료.
 - [x] 로컬 문서 링크 13개 확인 및 모바일·데스크톱·Light/Dark 화면 캡처 확인.
 - [x] README·설계 문서 최종 결과 기록 및 `7be2806` 로컬 커밋 완료.
@@ -42,7 +42,7 @@
 ## UX·작업 지침 추가
 
 - [x] 수정 전 호출 관계·의존성·영향 파일 확인과 최소 변경 원칙의 AGENTS 반영.
-- [x] UX·DX·AX, 직접적인 문구, 주요 버튼·더보기·입력 검증·오류 복구·데이터 보관 원칙 반영.
+- [x] UX·DX·AX, 직접적인 문구, 주요 버튼·입력 검증·오류 복구·데이터 보관 원칙 반영. 더보기 배치는 후속 요청에 따라 제거.
 - [x] 앱 태그라인·중복 도움말·보조 레이블 제거, 지원 범위·검수 한계의 접이식 제공 및 모바일 주요 버튼 상시 표시.
 - [x] 기본 샘플의 홍보 문구 제거와 검수 목록 제공.
 - [x] 예제 폼의 blur/제출 검증, 입력 타입, 오류 포커스·스크롤, 입력 내용 유지 적용.
@@ -96,3 +96,20 @@
 SEO 읽기 점검 결과: 초기 UI는 정적 HTML, 검수 영역은 클라이언트 생성. 앱 응답에 noindex meta/X-Robots-Tag 없음. `/robots.txt`·`/sitemap.xml`은 404. 검사한 내부 링크·자산 5개는 200이며 없는 페이지는 404와 복귀 링크 제공. Search Console·공개 도메인은 미확인. 정적 초기 HTML 응답을 SSR 구현 완료로 기록하지 않음.
 
 기존 Phase 1–3 완료 내용과 렌더링·보안 계약: [docs/Design.md](docs/Design.md). 실행·사용 안내: [README.md](README.md).
+
+## 2026-10-27 URL·붙여넣기·기기·도구 모음 수정
+
+- [x] 호출 관계 확인: app.js → emulation-ui.js의 공유 capture → 기존 `/api/emulate` → emulator.mjs / public-resource.mjs. profiles.js는 화면과 서버가 함께 사용하며 테스트·문서까지 수정 범위 확정.
+- [x] 별도 상단 헤더·모바일 도구 메뉴·설정 더보기 제거. 로고를 HTML 열기 왼쪽으로 이동하고 설정 상시 표시.
+- [x] URL iframe 대신 기존 격리 Chromium 스냅샷·DOM 검사 결과를 본 화면에 자동 표시. URL fragment 보존, 순차 비교·이전 결과 폐기·실패 후 재시도 제공.
+- [x] URL·코드 붙여넣기의 JavaScript 실행 선택 제공. 기본 OFF, HTML 외부 통신 차단·정적 iframe sandbox 유지. 사용자 원본·초안의 메모리 보관 유지.
+- [x] 스크립트 기반 URL의 비동기 GET 완료를 최대 3초 범위에서 대기. 전체 검사 20초 제한 유지. POST 차단과 60개 제한의 오류 구분.
+- [x] 모델명·CSS 크기·DPR·UA 참조를 설치된 Playwright 정의와 정합화. Fold 6 928 × 1080, Cover 484 × 1188, S24 360 × 780. Generic 목록의 UI 제거와 직접 입력 유지.
+- [x] 단위 15개·구문 검사 통과. 브라우저의 frame-denied URL·구간 보존·지연 GET·POST 차단·JS opt-in·기기 전환·비교·실패/재시도·DOCTYPE HTML·정적 격리 검사 추가.
+- [x] 실제 두 URL의 수정된 UI 표시 확인: hourboard HTTP 200·4 GET·차단 0·약 1.5초, ktwiz HTTP 200·30 GET·POST 차단 1·약 2.5초. iPhone 13 390 × 844, JavaScript ON. ktwiz의 현재 HTML에 boardSec ID 없음 확인. 임의 앵커 생성이나 사이트 변경 없음.
+- [x] example.com `npm run test:url` 통과, 종료 코드 0. `npm run test:secrets` 인식 시크릿 0건. 의존성·lock·전역 MCP 변경 없음.
+- [x] 최종 `npm run check`·`npm test` (15개)·`npm run test:browser` (5개 브라우저 검사)·`npm run test:url`·`npm run test:secrets` 및 `git diff --check` 종료 코드 0 확인.
+
+확인한 상충과 처리: 기존 AGENTS/README/설계의 설정 더보기·모바일 메뉴 배치는 최신 사용자 요청에 따라 도구 모음으로 수정. URL 직접 iframe·DOM 미검사 문서는 기존 Chromium API를 재사용한 현재 동작으로 수정. Generic 중심 목록·그룹별 공통 UA 설명은 모델별 크기·DPR·UA와 직접 입력 기준으로 수정. 실제 기기·Safari 재현 및 보안 경계는 유지.
+
+미검증·제약: 사용자가 붙여넣은 전체 원본 미제공으로 동일 코드 재현 제외. 완전한 DOCTYPE 문서·인라인 JS·외부 요청 차단은 회귀 검사. URL은 조작 가능한 브라우저가 아닌 정적 스냅샷이며 로그인·POST·긴 비동기 로딩·실제 모바일 브라우저 보장 제외. 진행 중인 이전 검사는 완료까지 대기하며 분당 20회 제한 유지.

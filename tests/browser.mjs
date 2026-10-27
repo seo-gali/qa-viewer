@@ -18,7 +18,6 @@ async function paste(html) {
 try {
   await page.goto(base);
   await page.waitForFunction(() => document.getElementById('checks').children.length > 0);
-  await page.locator('#more-tools summary').click();
   assert.equal(await page.locator('iframe').getAttribute('sandbox'), 'allow-same-origin');
   const html = `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0}#fixture{width:100vw;height:100vh;background:#ddd}@media(max-width:400px){#fixture{background:rgb(255, 0, 0)}}.wide{width:428px}.tiny{font-size:10px}.outside{position:fixed;top:-20px}.clip{overflow:hidden;width:100px;height:30px}.clipped{width:180px;height:60px}.below{margin-top:1500px}</style><main id="fixture"><div class="wide">Overflow</div><span class="tiny">Tiny</span><a class="missing" href="#no-such-id">Missing</a><a class="valid" href="#fixture">Valid</a><img src="data:image/png;base64,broken" width="24" height="24" alt="broken fixture"><div class="outside">Fixed</div><div class="clip"><div class="clipped">Clipped</div></div><p class="below">Normal scroll content</p></main><script>parent.document.body.dataset.escaped='yes';document.querySelector('#fixture').remove();</script>`;
   await paste(html);
@@ -45,7 +44,7 @@ try {
   await page.click('#rotate'); await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 844 && document.querySelector('iframe').contentDocument?.querySelector('#fixture'));
   assert.equal((await metrics()).height, 390);
   await page.click('#rotate');
-  await page.selectOption('#device', 'fold'); await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 768);
+  await page.selectOption('#device', 'fold'); await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 928);
   assert.equal(await page.locator('.hinge.vertical').count(), 1);
   await page.check('#safe'); await page.waitForTimeout(200); assert.equal(await page.locator('.safe-top').count(), 1);
   await page.fill('#width', '412'); await page.locator('#width').press('Tab');
@@ -70,21 +69,21 @@ try {
   await paste(html); await page.selectOption('#scale', 'fit'); await page.uncheck('#safe');
   await page.click('#compare');
   await page.waitForFunction(() => document.querySelectorAll('iframe').length === 3 && [...document.querySelectorAll('iframe')].every(f => f.contentDocument?.querySelector('#fixture')));
-  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('iframe')].map(f => f.contentWindow.innerWidth)), [390, 412, 768]);
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('iframe')].map(f => f.contentWindow.innerWidth)), [390, 412, 928]);
   const scales = await page.locator('.device').evaluateAll(els => els.map(el => el.style.transform)); assert.equal(new Set(scales).size, 1);
   await page.getByRole('button', {name:'기기 3 검사 결과', exact:true}).click();
   assert.ok((await page.locator('#review-profile').textContent()).includes('FOLD'));
   assert.ok((await page.locator('#checks').textContent()).includes('가로 스크롤 없음'));
   await page.getByRole('button', {name:'기기 1 검사 결과', exact:true}).click();
   assert.ok((await page.locator('#checks').textContent()).includes('가로 scroll'));
-  await page.selectOption('.card-profile >> nth=1', 'generic-320');
+  await page.selectOption('.card-profile >> nth=1', 'iphone-se');
   await page.waitForFunction(() => document.querySelectorAll('iframe')[1].contentWindow.innerWidth === 320);
-  assert.equal(await page.locator('#device').inputValue(), 'generic-320');
+  assert.equal(await page.locator('#device').inputValue(), 'iphone-se');
   await page.click('#add-device');
   await page.waitForFunction(() => document.querySelectorAll('iframe').length === 4 && [...document.querySelectorAll('iframe')].every(f => f.contentDocument?.querySelector('#fixture')));
   assert.equal(await page.locator('#add-device').isDisabled(), true);
   await page.click('#rotate');
-  await page.waitForFunction(() => [...document.querySelectorAll('iframe')].map(f=>f.contentWindow.innerWidth).join(',') === '844,844,884,844');
+  await page.waitForFunction(() => [...document.querySelectorAll('iframe')].map(f=>f.contentWindow.innerWidth).join(',') === '844,568,1080,568');
   await page.click('#rotate');
   await page.getByRole('button', {name:'기기 4 제거', exact:true}).click(); assert.equal(await page.locator('iframe').count(), 3);
   await page.getByRole('button', {name:'기기 3 제거', exact:true}).click(); assert.equal(await page.locator('iframe').count(), 2);

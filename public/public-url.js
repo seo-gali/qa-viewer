@@ -17,6 +17,5 @@ export function validatePublicUrl(value) {
   if (url.protocol !== 'https:' || url.username || url.password || url.port) throw new Error('인증 정보 없는 공개 HTTPS 기본 포트만 지원합니다.');
   const host = url.hostname.toLowerCase();
   if (!host.includes('.') || /\.(localhost|local|internal)\.?$/.test(host) || host.startsWith('[') || (/^[\d.]+$/.test(host) && !isPublicIPv4(host))) throw new Error('localhost·사설망·예약 주소·IPv6 주소는 지원하지 않습니다.');
-  url.hash = '';
   return url.href;
 }

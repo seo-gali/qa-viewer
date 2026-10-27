@@ -21,12 +21,11 @@ try {
     const links=await page.locator('a[href]').evaluateAll(els=>els.map(el=>el.getAttribute('href')).filter(href=>!href.startsWith('https:')));
     for(const href of links) assert.equal((await page.request.get(new URL(href,base).href)).status(),200,href);
     assert.equal((await page.request.get(base+'/favicon.svg')).status(),200);
-    if(width<760) { assert.equal(await page.locator('#open').isVisible(),true); assert.equal(await page.locator('#emulate').isVisible(),true); assert.equal(await page.locator('#paste').isVisible(),false); await page.click('#mobile-menu'); assert.equal(await page.locator('#mobile-menu').getAttribute('aria-expanded'),'true'); assert.equal(await page.locator('#paste').isVisible(),true); await noOverflow(`expanded menu ${width}`); }
     assert.equal(await page.locator('.product-label,.canvas-note,.panel-intro,.inspection-note').count(),0);
-    assert.equal(await page.locator('#safe').isVisible(),false);
-    await page.locator('#more-tools summary').focus(); await page.keyboard.press('Enter');
-    assert.equal(await page.locator('#safe').isVisible(),true); await noOverflow(`more tools ${width}`);
-    await page.keyboard.press('Enter'); assert.equal(await page.locator('#safe').isVisible(),false);
+    for(const id of ['open','paste','open-url','emulate','safe']) assert.equal(await page.locator('#'+id).isVisible(),true);
+    assert.equal(await page.locator('.masthead,#more-tools,#mobile-menu').count(),0);
+    assert.equal(await page.locator('.toolbar-primary > .identity + #open').count(),1);
+    assert.equal(await page.locator('#device optgroup[label=Generic]').count(),0);
     await page.click('#compare'); await page.waitForTimeout(200); await noOverflow(`compare ${width}`);
     await page.click('#paste'); await noOverflow(`paste dialog ${width}`); await page.getByRole('button',{name:'닫기',exact:true}).click();
     await page.click('#open-url'); await noOverflow(`URL dialog ${width}`);
@@ -44,5 +43,5 @@ try {
   }
   await page.setViewportSize({width:390,height:844}); await page.goto(base); await page.waitForTimeout(200); await mkdir('artifacts',{recursive:true}); await page.screenshot({path:'artifacts/mobile.png',fullPage:true});
   await page.goto(base+'/not-a-page'); await page.screenshot({path:'artifacts/404-mobile.png',fullPage:true});
-  assert.deepEqual(errors,[]); console.log('PASS UI polish: 320/375/390/768/1440px home/compare/dialogs/404, no outer overflow, mobile menu, internal links, favicon, metadata, year.');
+  assert.deepEqual(errors,[]); console.log('PASS UI polish: 320/375/390/768/1440px home/compare/dialogs/404, no outer overflow, visible toolbar, internal links, favicon, metadata, year.');
 } finally { await browser.close(); await new Promise(resolve=>server.close(resolve)); }

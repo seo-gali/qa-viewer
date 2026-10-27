@@ -30,7 +30,7 @@ npm start
 | 구분 | 기능 |
 | --- | --- |
 | 콘텐츠 입력 | HTML 열기·Drag & Drop·코드 붙여넣기·공개 HTTPS URL |
-| 기기 프로필 | Apple·Samsung·Foldable·Flip·Generic·Custom |
+| 기기 프로필 | iPhone 13·15 Pro Max·X·SE·SE 3세대, Galaxy S24·A55·Z Fold 6·Cover·Z Flip 6, Pixel 7, 직접 입력 |
 | viewport | 240–2048 CSS px의 Custom 크기·세로/가로 회전 |
 | 화면 표시 | Fit·100%·75%·50%·기기 외곽선·cutout 시각화 |
 | 검수 오버레이 | Safe Area·Dynamic Island·notch·Fold/Flip hinge·요소 bounding box |
@@ -38,15 +38,15 @@ npm start
 | 비교 | 동일 콘텐츠의 2–4개 독립 viewport·카드별 기기 및 검사 선택·공통 Fit 배율 |
 | Chromium 검사 | 모바일 viewport meta·DPR·resolution media query·touch·UA·테마·선택적 JavaScript 실행 |
 | 결과 저장 | CSS pixel 크기의 PNG·WebP 85% 압축·JSON QA 리포트 |
-| UI 마감 | 모바일 도구 메뉴·페이지 메타·SVG 파비콘·홈 로고·푸터·자동 저작권 연도·맞춤 404·성공/오류 안내 |
+| UI 마감 | 도구 모음 내 로고·상시 표시 설정·페이지 메타·SVG 파비콘·푸터·자동 저작권 연도·맞춤 404·성공/오류 안내 |
 
 ## 사용 순서
 
-1. HTML 파일·코드·공개 HTTPS URL 선택.
+1. HTML 파일·코드·공개 HTTPS URL 선택. 스크립트 기반 화면의 JavaScript 실행 선택.
 2. 기기 프로필 또는 Custom 크기 지정.
-3. 회전·Fit 및 더보기의 Safe Area·최소 글자 기준에 따른 콘텐츠 확인.
+3. 회전·Fit 및 도구 모음의 Safe Area·최소 글자 기준에 따른 콘텐츠 확인.
 4. Compare를 통한 2–4개 기기 비교 및 카드별 검사 선택.
-5. Inspect 경고 선택에 따른 해당 요소 bounding box 확인.
+5. Inspect 결과 확인. 정적 HTML의 경고 선택 시 해당 요소 bounding box 표시. 스냅샷의 요소 선택·버튼 조작 제외.
 6. Chromium 검사의 DPR·테마·JavaScript 조건 지정 및 스냅샷 검사.
 7. PNG·WebP·JSON 결과 다운로드.
 
@@ -75,7 +75,7 @@ Chromium 검사 결과의 스냅샷 제공에 따른 클릭 흐름 조작 미지
 
 ## UX 적용
 
-- HTML 열기·Chromium 검사의 주요 버튼 강조와 모바일 상시 표시. 원본 재렌더링·Safe Area·글자 임계값의 더보기 배치.
+- HTML 열기·Chromium 검사의 주요 버튼 강조. 로고·입력·기기·검수 설정의 도구 모음 배치 및 모바일 줄바꿈. 상단 헤더·도구 메뉴·설정 더보기 제거.
 - 태그라인·중복 안내·보조 레이블 제거 및 기능명·동작·상태 중심의 문구 사용. 검수 한계와 지원 범위의 접이식 제공.
 - 기본 샘플의 홍보 문구·장식 대신 검수 목록·내부 링크·확인 항목 제공.
 - 예제 폼의 blur/제출 검증, 오류 입력의 포커스·스크롤 이동, 완료 후 수정 시 입력 내용 유지.
@@ -93,7 +93,7 @@ Chromium 검사 결과의 스냅샷 제공에 따른 클릭 흐름 조작 미지
 - 보안용 CSP 삽입·meta refresh 제거·외부 링크 이동 차단.
 - 데스크톱 iframe의 모바일 viewport meta·DPR·touch 재현 미지원.
 - Safe Area·cutout·hinge의 참고 시각화 및 실제 UA env 변수 생성 미지원.
-- 프로필의 검수용 참고 치수 사용 및 공식 최신 하드웨어 사양 보장 제외.
+- [Playwright 기기 정의](https://playwright.dev/docs/emulation#devices)의 `screen ?? viewport` CSS 크기·DPR·모델별 UA 참조 사용. 브라우저 주소창을 뺀 실제 가용 영역·하드웨어 물리 픽셀·Safari 재현과 구분. Safe Area·cutout·hinge의 참고 시각화 유지.
 - 설정 임계값 기반 작은 글자 경고 및 웹 표준 위반 판정 제외.
 - 세로 스크롤 콘텐츠와 화면 밖 fixed 요소의 구분.
 - Chromium 결과의 정적 스냅샷 제공 및 실제 Safari·OS·CPU·휴대폰 재현 제외.
@@ -103,14 +103,16 @@ Chromium 검사 결과의 스냅샷 제공에 따른 클릭 흐름 조작 미지
 | 항목 | 범위 |
 | --- | --- |
 | 주소 | 인증 정보 없는 공개 HTTPS·기본 443 포트·공개 IPv4 |
-| iframe | 사이트의 삽입 정책에 따른 표시·cross-origin DOM 검사 미지원 |
-| 삽입 차단 사이트 | Chromium 최상위 페이지의 스크린샷 및 DOM 검사 |
+| 표시 | URL 열기 시 Chromium 최상위 페이지의 스크린샷과 DOM 검사 결과 자동 표시 |
+| 삽입 차단 사이트 | 원격 iframe 삽입 없이 검사. 사이트의 frame-ancestors·X-Frame-Options 변경 없음 |
+| JavaScript | 기본 OFF·URL 입력에서 실행 선택 가능. 스냅샷의 버튼·링크 조작 제외 |
+| 구간 링크 | 입력한 URL의 fragment 보존. 대상 ID 없는 구간 이동 보장 제외 |
 | 리소스 | 공개 HTTPS GET·상대 경로 스타일/이미지·선택적 스크립트 및 GET API |
 | 인증 | 원격 Cookie·Authorization 전달 및 로그인 사이트 지원 제외 |
 | 제한 | localhost·사설망·예약 주소·IPv6·POST API·서비스 워커·팝업·중첩 프레임·다운로드 차단 |
 | 렌더링 한계 | 인증·봇 보호·차단 리소스·복잡한 비동기 로딩에 따른 일부 사이트 불완전 표시 가능성 |
 
-HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰트를 포함한 단일 파일 사용 권장.
+HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰트를 포함한 단일 파일 사용 권장. 붙여넣기의 JavaScript 실행 선택 시 격리된 Chromium 스냅샷 표시. 외부 CSS·JS·API 의존 페이지의 URL 열기 사용. 비교 카드의 순차 검사 및 변경 전 진행 중인 검사 완료 대기. 실패 시 다시 시도 또는 다시 렌더링 사용. 분당 20회 제한 유지.
 
 ## 보안 기준
 
@@ -144,12 +146,12 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 
 ## 검증 결과
 
-현재 변경 검증 기준일: 2026-10-26. Node.js v24.22.1 환경의 전체 회귀 검사 통과.
+현재 변경 검증 기준일: 2026-10-27. Node.js v24.22.1 환경의 전체 회귀 검사 결과 기록.
 
 | 명령 | 검증 범위 | 결과 |
 | --- | --- | --- |
 | `npm run check` | JavaScript/Node 모듈 구문 | 통과 |
-| `npm test` | 프로필·URL·입력·세션·Origin·제한·404·런타임 경계값·스테이징 단독 탐지 | 14개 통과 |
+| `npm test` | 모델 정의 일치·프로필·URL·입력·세션·Origin·제한·404·런타임 경계값·스테이징 단독 탐지 | 15개 통과 |
 | `npm run test:browser` | viewport/Fit·격리·비교·모바일 브라우저·UI·HTML 예제 상태/키보드/테마 | 통과 |
 | `npm run test:url` | example.com 실제 HTTPS 콘텐츠 및 Chromium 스냅샷 | 통과 |
 | `npm run test:secrets` | 전체 로컬 커밋·추적 작업 트리·스테이징의 시크릿 파일/인식 키 패턴 | 발견 0건 |
@@ -170,8 +172,10 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 - 실제 파일 열기 버튼·내부 링크·favicon·페이지 메타·저작권 연도·오류 메시지 확인.
 - GitHub 푸터 링크의 공개 HTTPS 응답 200 확인: 2026-10-05 기록.
 - HTML 예제의 375·390·768·1440 CSS px 및 844 × 390 가로 방향·Light/Dark·긴 한국어 문구·입력 오류·완료·수정·키보드·포커스 이동·외부 요청 0건 확인.
-- 더보기의 키보드 조작, 모바일 주요 버튼 표시, URL·DPR 오류 포커스 및 편집 시 오류 정리 확인.
+- 도구 모음의 로고 위치·입력 및 설정 표시, URL·DPR 오류 포커스 및 편집 시 오류 정리 확인.
 - 미적용 코드·URL·빈 초안 보존, 오류 후 재개, 새 콘텐츠 적용·새로고침 시 초기화 및 브라우저 저장소 미사용 확인.
+- URL 자동 스냅샷·fragment 보존·지연 GET·POST 차단·빠른 기기 전환·순차 비교·실패 후 재시도 및 DOCTYPE 인라인 JS 붙여넣기 확인.
+- 실제 hourboard·ktwiz URL의 JavaScript ON 화면 표시 확인. hourboard 차단 0건, ktwiz POST 1건 차단. 현재 ktwiz HTML의 `boardSec` ID 부재 확인. 제공되지 않은 붙여넣기 전체 원본의 동일 재현 제외.
 
 추가 로컬 진단: [성능 측정 기록과 Chrome DevTools MCP 연결 검토안](docs/chrome-devtools.md). MCP 설치·클라이언트 설정 변경·Lighthouse 실행은 승인 전 미실시.
 
@@ -179,6 +183,7 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 
 - `phase-1.png`, `phase-2.png`, `phase-3.png` — 단계별 화면.
 - `phase-3-url.png`, `phase-3-live-url.png` — URL 검사.
+- `verified-hourboard.png`, `verified-ktwiz.png` — 사용자 제공 실주소의 수정된 UI 확인. 검증 시점 스냅샷.
 - `mobile.png`, `404-mobile.png` — 모바일 UI.
 - `form-390-light.png`, `form-390-dark.png`, `form-1440-light.png`, `form-1440-dark.png` — 예제의 모바일·데스크톱 및 테마.
 - `form-success-light.png`, `form-success-dark.png`, `form-qa-js-off.png`, `form-qa-js-on.png` — 예제의 완료 화면 및 Chromium 스냅샷.

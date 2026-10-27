@@ -2,10 +2,10 @@
 <html lang="ko">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Mobile QA Viewer | HTML·URL 모바일 콘텐츠 검수</title><meta name="description" content="HTML 파일과 공개 URL을 다양한 모바일 CSS viewport에서 비교하고 Safe Area, overflow, 작은 글자, 깨진 내부 링크를 검수하는 로컬 QA Viewer입니다."><link rel="icon" type="image/svg+xml" href="favicon.svg"><link rel="stylesheet" href="styles.css"></head>
 <body>
-  <header class="masthead"><a class="identity" href="./" aria-label="Mobile QA Viewer 홈"><span class="mark">▣</span><strong>mobile<span>qa</span></strong></a><button id="mobile-menu" class="mobile-menu" aria-label="미리보기 도구 메뉴" aria-controls="toolbar" aria-expanded="false">☰ 도구</button></header>
   <main class="workspace">
     <section id="toolbar" class="toolbar" aria-label="미리보기 설정">
       <div class="toolbar-primary">
+        <a class="identity" href="./" aria-label="Mobile QA Viewer 홈"><span class="mark">▣</span><strong>mobile<span>qa</span></strong></a>
         <button id="open" class="primary">＋ HTML 열기</button><input id="file" type="file" accept=".html,.htm,text/html" hidden>
         <button id="paste">코드 붙여넣기</button><button id="open-url">URL 열기</button><span class="divider"></span>
         <label class="sr-only" for="device">기기 프로필</label><select id="device"></select>
@@ -15,7 +15,7 @@
         <span class="divider"></span><button id="compare" aria-pressed="false">▥ Compare</button><button id="add-device" hidden>＋ 기기 추가</button>
         <button id="emulate" class="primary">Chromium 검사</button>
       </div>
-      <div class="toolbar-secondary"><div class="document-info"><span id="filename">qa-sample.html</span><span id="source-state" class="sr-only">샘플 콘텐츠</span></div><div class="toggles"><label><input id="inspect" type="checkbox" checked>Inspect</label></div><details id="more-tools" class="more-tools"><summary>더보기</summary><div class="more-options toggles"><button id="reload">원본 다시 렌더링</button><label><input id="safe" type="checkbox">Safe Area</label><label class="font-setting">최소 글자 <input id="min-font" type="number" inputmode="numeric" value="12" min="6" max="32">px</label></div></details></div>
+      <div class="toolbar-secondary"><div class="document-info"><span id="filename">qa-sample.html</span><span id="source-state" class="sr-only">샘플 콘텐츠</span></div><div class="toggles"><button id="reload">다시 렌더링</button><label><input id="inspect" type="checkbox" checked>Inspect</label><label><input id="safe" type="checkbox">Safe Area</label><label class="font-setting">최소 글자 <input id="min-font" type="number" inputmode="numeric" value="12" min="6" max="32">px</label></div></div>
     </section>
     <div class="workbench">
       <section id="canvas" class="canvas" aria-label="HTML 미리보기 · 파일 드롭"><div class="canvas-caption"><span id="scale-label">FIT</span></div><div id="devices" class="devices"></div></section>
@@ -23,9 +23,9 @@
     </div>
     <footer class="statusbar"><span id="status">준비됨</span><span id="render-mode">Desktop iframe · JavaScript OFF · 외부 리소스 차단</span><span class="footer-links">© <time id="copyright-year" datetime="2026">2026</time> Mobile QA Viewer <a href="./">홈</a><a href="https://github.com/seo-gali/qa-viewer" target="_blank" rel="noopener noreferrer">GitHub ↗</a></span></footer>
   </main>
-  <dialog id="paste-dialog"><form method="dialog" class="dialog-heading"><h2>코드 붙여넣기</h2><button aria-label="닫기">✕</button></form><label class="code-label" for="code">HTML 코드</label><textarea id="code" spellcheck="false"></textarea><div class="dialog-footer"><button id="apply-code" class="primary">미리보기 적용</button></div></dialog>
+  <dialog id="paste-dialog"><form method="dialog" class="dialog-heading"><h2>코드 붙여넣기</h2><button aria-label="닫기">✕</button></form><label class="code-label" for="code">HTML 코드</label><textarea id="code" spellcheck="false"></textarea><label class="script-option"><input id="code-scripts" type="checkbox">JavaScript 실행 · Chromium 스냅샷</label><details class="support-scope"><summary>지원 범위</summary><p>인라인 CSS·JavaScript가 포함된 HTML 지원. 외부 CSS·JS·이미지·API 차단. 외부 리소스가 필요한 페이지는 URL 열기 사용.</p></details><div class="dialog-footer"><button id="apply-code" class="primary">미리보기 적용</button></div></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
-  <dialog id="url-dialog"><form method="dialog" class="dialog-heading"><h2>URL 열기</h2><button aria-label="URL 입력 닫기">✕</button></form><label for="url-input">공개 HTTPS URL</label><input id="url-input" class="url-input" type="url" aria-describedby="url-help"><details class="support-scope"><summary>지원 범위</summary><p id="url-help">공개 HTTPS만 지원합니다. 로그인·사설망·IPv6 전용 주소는 지원하지 않습니다. 다른 도메인의 DOM 검사는 Chromium 검사를 사용하세요.</p></details><div class="dialog-footer"><button id="apply-url" class="primary">URL 적용</button></div></dialog>
+  <dialog id="url-dialog"><form method="dialog" class="dialog-heading"><h2>URL 열기</h2><button aria-label="URL 입력 닫기">✕</button></form><label for="url-input">공개 HTTPS URL</label><input id="url-input" class="url-input" type="url" aria-describedby="url-help"><label class="script-option"><input id="url-scripts" type="checkbox">JavaScript 실행</label><details class="support-scope"><summary>지원 범위</summary><p id="url-help">공개 HTTPS GET으로 읽은 Chromium 스냅샷. JavaScript로 화면을 만드는 사이트는 실행 선택 필요. 로그인·전송·사설망·IPv6 전용 주소 미지원. 스냅샷 안의 버튼·링크 조작 불가.</p></details><div class="dialog-footer"><button id="apply-url" class="primary">URL 열기</button></div></dialog>
   <dialog id="emulation-dialog" class="emulation-dialog"><form method="dialog" class="dialog-heading"><h2>Chromium 검사</h2><button aria-label="브라우저 검사 닫기">✕</button></form>
     <div class="emulation-settings"><label>DPR <input id="emulation-dpr" type="number" inputmode="decimal" min="1" max="4" step="0.25" value="3"></label><label>테마 <select id="emulation-color"><option value="light">Light</option><option value="dark">Dark</option></select></label><label><input id="emulation-scripts" type="checkbox">JavaScript 실행</label><button id="run-emulation" class="primary">검사 실행</button></div>
     <details class="support-scope"><summary>검사 범위</summary><p>Chromium의 정적 스냅샷입니다. 실제 Safari·기기·OS·CPU를 재현하지 않습니다. HTML은 외부 통신 차단, URL은 공개 HTTPS GET만 허용합니다. 팝업·다운로드·서비스 워커 차단, Safe Area·Fold env() 미재현.</p></details>

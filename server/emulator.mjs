@@ -20,7 +20,7 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
     browser = await chromium.launch({ timeout: 10000 });
     if (signal?.aborted) throw new Error('검사가 취소되었습니다.');
     const p = config.profile;
-    const referenceName = p.group === 'Apple' ? 'iPhone 13' : 'Galaxy S9+';
+    const referenceName = p.referenceDevice ?? 'Galaxy S24';
     const reference = devices[referenceName];
     const context = await browser.newContext({
       viewport: { width: p.width, height: p.height }, screen: { width: p.width, height: p.height },
@@ -49,7 +49,8 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
       if (config.url) {
         let acquired = false;
         try {
-          if (request.method() !== 'GET' || ++remoteRequests > 60) throw new Error('GET 요청 및 최대 60개 리소스만 지원합니다.');
+          if (request.method() !== 'GET') throw new Error(`${request.method()} 요청 차단: 공개 HTTPS GET만 지원합니다.`);
+          if (++remoteRequests > 60) throw new Error('최대 60개 리소스 제한입니다.');
           await acquire(); acquired = true;
           const resource = await fetchResource(request.url(), { signal: jobSignal, userAgent: reference.userAgent });
           remoteBytes += resource.body.length;
@@ -71,7 +72,8 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
     });
     await context.routeWebSocket('**/*', socket => { blockedRequests++; socket.close(); });
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 6000 });
-    // Bounded settle: no networkidle dependency, since user scripts can loop requests.
+    // Allow script-started GETs to settle without letting polling sites wait indefinitely.
+    if (config.url && config.scripts) await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
     await page.evaluate(() => Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 500))]));
     await page.waitForTimeout(200);
     const runtime = await page.evaluate(() => ({

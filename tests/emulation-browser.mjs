@@ -75,8 +75,10 @@ try {
   await page.screenshot({path:'artifacts/phase-3.png',fullPage:true});
   await page.getByRole('button',{name:'브라우저 검사 닫기'}).click();
   await page.click('#open-url'); await page.fill('#url-input','https://fixture.example/'); await page.click('#apply-url');
-  assert.ok((await page.locator('#checks').textContent()).includes('DOM 검사 불가'));
-  assert.ok((await page.locator('#render-mode').textContent()).includes('URL iframe'));
+  await page.waitForFunction(()=>document.querySelector('.preview-shot')?.getAttribute('src')?.startsWith('data:image/png'),null,{timeout:25000});
+  assert.equal(await page.locator('iframe').count(),0);
+  assert.ok((await page.locator('#issues').textContent()).includes('500'));
+  assert.ok((await page.locator('#render-mode').textContent()).includes('Chromium'));
   await page.click('#emulate'); await page.click('#run-emulation');
   await page.waitForFunction(()=>!document.getElementById('emulation-result').hidden,{},{timeout:25000});
   assert.ok((await page.locator('#emulation-metrics').textContent()).includes('https://fixture.example/'));
