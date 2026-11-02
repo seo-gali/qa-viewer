@@ -16,3 +16,10 @@ test('emulation rejects oversized input and mistyped or unbounded settings', () 
   assert.throws(()=>validateEmulation({html:'x',custom:null}));
   assert.throws(()=>validateEmulation({html:'x',custom:{width:390,height:844,role:'admin'}}));
 });
+test('click history accepts bounded CSS selectors and rejects malformed input', () => {
+  const input = { html: '<button id="open">Open</button>' };
+  assert.deepEqual(validateEmulation(input).clicks, []);
+  assert.deepEqual(validateEmulation({ ...input, clicks: ['#open', 'main > summary'] }).clicks, ['#open', 'main > summary']);
+  for (const clicks of [null, '#open', {}, [null], [42], [''], [' '.repeat(3)], ['a'.repeat(2049)], Array(9).fill('#open')]) assert.throws(() => validateEmulation({ ...input, clicks }));
+  assert.equal(validateEmulation({ ...input, clicks: Array(8).fill('#open') }).clicks.length, 8);
+});

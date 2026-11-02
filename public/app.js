@@ -6,14 +6,14 @@ import { capture, setupEmulation } from './emulation-ui.js';
 import { validatePublicUrl } from './public-url.js';
 
 const $ = id => document.getElementById(id);
-const state = { html: sample, url: null, scripts: false, snapshot: false, dpr: null, colorScheme: 'light', filename: 'qa-sample.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'pixel-7', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
+const state = { html: sample, url: null, urls: [], clicks: [], scripts: false, snapshot: false, dpr: null, colorScheme: 'light', filename: 'qa-sample.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'pixel-7', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
 let toastTimer, scanTimer;
 let codeDraft = null, urlDraft = null;
 let previewJob = Promise.resolve();
 const previews = new Map();
 const snapshotMode = () => Boolean(state.url || state.scripts || state.snapshot);
 function emulationInput(index = state.active) {
-  return { ...(state.url ? { url: state.url } : { html: state.html }), scripts: state.scripts, profile: state.selections[index], custom: state.custom[index], landscape: state.landscape, dpr: state.dpr ?? resolveProfile(state.selections[index], state.custom[index], state.landscape).dpr, colorScheme: state.colorScheme, minFont: Number($('min-font').value), safeArea: $('safe').checked };
+  return { ...(state.url ? { url: state.urls[index] ?? state.url } : { html: state.html }), clicks: state.clicks[index] ?? [], scripts: state.scripts, profile: state.selections[index], custom: state.custom[index], landscape: state.landscape, dpr: state.dpr ?? resolveProfile(state.selections[index], state.custom[index], state.landscape).dpr, colorScheme: state.colorScheme, minFont: Number($('min-font').value), safeArea: $('safe').checked };
 }
 export function toast(message, kind = 'error', input) {
   const dialog = document.querySelector('dialog[open]');
@@ -70,15 +70,18 @@ function render() {
     for (const [index, card] of cards.entries()) {
       if (generation !== state.generation || !snapshot) break;
       try {
-        const { html, url, ...settings } = inputs[index];
+        const { html, ...settings } = inputs[index];
         const key = JSON.stringify(settings);
         const data = previews.get(key) ?? await capture(inputs[index]);
         if (generation !== state.generation) break;
         if (!previews.has(key)) { if (previews.size >= 8) previews.delete(previews.keys().next().value); previews.set(key, data); }
         card.image.width = data.imageSize.width; card.image.height = data.imageSize.height;
+        card.page.style.width = `${data.imageSize.width}px`; card.page.style.height = `${data.imageSize.height}px`;
+        if (data.source.type === 'url' && data.source.finalUrl.split('#')[0] !== inputs[index].url.split('#')[0]) { state.urls[index] = validatePublicUrl(data.source.finalUrl); state.clicks[index] = []; }
         card.report = data.report; card.result = data; card.image.src = data.image; card.message.hidden = true;
+        showClickTargets(card, index);
         if (card.review) card.review.textContent = `${card.p.width} × ${card.p.height} · ${data.report.issues.length} 경고`;
-      } catch (error) { card.error = error.message; card.message.textContent = `${error.message} 상단의 다시 렌더링으로 재시도하세요.`; }
+      } catch (error) { if (inputs[index].clicks.length) state.clicks[index] = inputs[index].clicks.slice(0, -1); card.error = error.message; card.message.textContent = `${error.message} 상단의 다시 렌더링으로 재시도하세요.`; }
       if (generation === state.generation && state.active === index) displayReport(card);
     }
     if (generation === state.generation) $('emulate').disabled = false;
@@ -92,11 +95,11 @@ function createCard(p, index) {
   let review = null;
   if (state.compare) {
     const select = document.createElement('select'); select.className = 'card-profile'; select.setAttribute('aria-label', `기기 ${index + 1} 프로필`); populate(select, p.id);
-    select.addEventListener('change', () => { state.selections[index] = select.value; state.active = index; render(); });
+    select.addEventListener('change', () => { state.selections[index] = select.value; state.clicks[index] = []; state.active = index; render(); });
     title.replaceChildren(select);
     if (state.selections.length > 2) {
       const remove = document.createElement('button'); remove.className = 'remove-card'; remove.textContent = '✕'; remove.setAttribute('aria-label', `기기 ${index + 1} 제거`);
-      remove.addEventListener('click', () => { state.selections.splice(index, 1); state.custom.splice(index, 1); state.active = Math.min(state.active, state.selections.length - 1); render(); }); title.append(remove);
+      remove.addEventListener('click', () => { state.selections.splice(index, 1); state.custom.splice(index, 1); state.clicks.splice(index, 1); state.urls.splice(index, 1); state.active = Math.min(state.active, state.selections.length - 1); render(); }); title.append(remove);
     }
     review = document.createElement('button'); review.className = 'card-review'; review.textContent = `${p.width} × ${p.height} · 검사 중`; review.setAttribute('aria-label', `기기 ${index + 1} 검사 결과`); review.addEventListener('click', () => activate(index));
   }
@@ -112,11 +115,13 @@ function createCard(p, index) {
     const image = document.createElement('img'); image.className = 'preview-shot'; image.width = p.width; image.height = p.height; image.alt = `${p.name} Chromium 스냅샷`;
     const message = document.createElement('p'); message.className = 'snapshot-state'; message.setAttribute('role', 'status'); message.textContent = 'Chromium에서 불러오는 중…';
     image.draggable = false;
-    const scroll = document.createElement('div'); scroll.className = 'preview-scroll'; scroll.tabIndex = 0; scroll.setAttribute('aria-label', `${p.name} 페이지 스크롤`); scroll.append(image);
+    const scroll = document.createElement('div'); scroll.className = 'preview-scroll'; scroll.tabIndex = 0; scroll.setAttribute('aria-label', `${p.name} 페이지 스크롤`);
+    const page = document.createElement('div'); page.className = 'preview-page'; page.append(image); scroll.append(page); card.page = page;
+    image.addEventListener('load', () => { if (card.generation === state.generation && card.result?.scroll) scroll.scrollTo(card.result.scroll); });
     let drag = null;
-    scroll.addEventListener('pointerdown', event => { if (event.button !== 0 || event.pointerType === 'touch') return; scroll.focus(); drag = { x: event.clientX, y: event.clientY, left: scroll.scrollLeft, top: scroll.scrollTop }; scroll.setPointerCapture(event.pointerId); event.preventDefault(); });
+    scroll.addEventListener('pointerdown', event => { if (event.button !== 0 || event.pointerType === 'touch') return; scroll.focus(); drag = { x: event.clientX, y: event.clientY, left: scroll.scrollLeft, top: scroll.scrollTop, target: event.target.closest('.preview-target') }; scroll.setPointerCapture(event.pointerId); event.preventDefault(); });
     scroll.addEventListener('pointermove', event => { if (!drag) return; const scale = device.getBoundingClientRect().width / device.offsetWidth; scroll.scrollLeft = drag.left + (drag.x - event.clientX) / scale; scroll.scrollTop = drag.top + (drag.y - event.clientY) / scale; });
-    scroll.addEventListener('pointerup', () => { drag = null; }); scroll.addEventListener('pointercancel', () => { drag = null; });
+    scroll.addEventListener('pointerup', event => { const pressed = drag; drag = null; if (pressed?.target && Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) < 5) pressed.target.click(); }); scroll.addEventListener('pointercancel', () => { drag = null; });
     device.replaceChildren(scroll, message, overlay); card.image = image; card.message = message; updateOverlay(card); return;
   }
   iframe.addEventListener('load', () => {
@@ -138,6 +143,25 @@ function createCard(p, index) {
   });
   card.blobURL = URL.createObjectURL(new Blob([previewDocument(state.html)], {type:'text/html'})); iframe.src = card.blobURL;
   updateOverlay(card);
+}
+function showClickTargets(card, index) {
+  for (const target of card.result.interactive ?? []) {
+    const button = document.createElement('button'); button.className = 'preview-target'; button.type = 'button';
+    button.setAttribute('aria-label', target.label || '버튼'); button.title = target.label;
+    Object.assign(button.style, { left: `${target.x}px`, top: `${target.y}px`, width: `${target.width}px`, height: `${target.height}px` });
+    button.addEventListener('click', () => {
+      if (card.generation !== state.generation || $('emulate').disabled) return;
+      if (state.url && target.href?.startsWith('https:') && target.href.split('#')[0] !== card.result.source.finalUrl.split('#')[0]) {
+        try { state.urls[index] = validatePublicUrl(target.href); }
+        catch (error) { toast(error.message); return; }
+        state.active = index; state.clicks[index] = []; render(); return;
+      }
+      const clicks = state.clicks[index] ?? [];
+      if (clicks.length >= 8) return toast('연속 클릭은 8번까지 지원합니다. 다시 렌더링하면 처음부터 볼 수 있습니다.');
+      state.active = index; state.clicks[index] = [...clicks, target.selector]; render();
+    });
+    card.page.append(button);
+  }
 }
 function scaleCards() {
   const canvas = $('canvas');
@@ -198,6 +222,7 @@ function displayReport(card) {
   if (card?.error) { $('issue-count').textContent = '—'; $('checks').replaceChildren(check(card.error, false)); $('issues').replaceChildren(); const retry = document.createElement('button'); retry.textContent = '다시 시도'; retry.addEventListener('click', render); $('issues').append(retry); $('breakpoints').textContent = ''; $('status').textContent = '불러오기 실패'; return; }
   if (!card?.report) { $('issue-count').textContent = '…'; $('checks').replaceChildren(); $('issues').replaceChildren(); $('breakpoints').textContent = '문서 로딩 중'; $('status').textContent = '문서 렌더링 / 검사 중'; return; }
   const r = card.report;
+  if (card.result?.source.type === 'url') $('filename').textContent = new URL(card.result.source.finalUrl).hostname;
   $('review-profile').textContent = card.p.name.toUpperCase();
   $('issue-count').textContent = r.issues.length + (r.truncated ? '+' : '');
   $('checks').replaceChildren(check(r.metaViewport ? 'viewport meta 존재' : 'viewport meta 없음', !!r.metaViewport), check(r.horizontalOverflow ? `가로 scroll ${r.scrollWidth}px / ${r.viewport.width}px` : '가로 스크롤 없음', !r.horizontalOverflow), check(card.result ? `Chromium 스냅샷 · JavaScript ${card.result.settings.scripts ? 'ON' : 'OFF'}` : 'JavaScript 격리 · 외부 리소스 차단', true));
@@ -225,7 +250,7 @@ function displayReport(card) {
 }
 function loadHTML(html, filename, source, scripts = false) {
   if (new Blob([html]).size > 2 * 1024 * 1024) { toast('HTML은 최대 2MB까지 열 수 있습니다.'); return false; }
-  previews.clear(); state.html = html; state.url = null; state.scripts = scripts; state.snapshot = false; state.dpr = null; state.colorScheme = 'light'; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
+  previews.clear(); state.html = html; state.url = null; state.urls = []; state.clicks = []; state.scripts = scripts; state.snapshot = false; state.dpr = null; state.colorScheme = 'light'; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
   codeDraft = null; urlDraft = null;
   toast(`${filename} 미리보기를 적용했습니다.`, 'success'); return true;
 }
@@ -238,7 +263,7 @@ $('open').addEventListener('click', () => $('file').click());
 $('file').addEventListener('change', () => { openFile($('file').files[0]); $('file').value = ''; });
 $('paste').addEventListener('click', () => { $('code').value = codeDraft ?? state.html; $('paste-dialog').showModal(); });
 $('code').addEventListener('input', () => { codeDraft = $('code').value; });
-$('open-url').addEventListener('click', () => { $('url-input').value = urlDraft ?? state.url ?? ''; $('url-dialog').showModal(); });
+$('open-url').addEventListener('click', () => { $('url-input').value = urlDraft ?? state.urls[state.active] ?? state.url ?? ''; $('url-dialog').showModal(); });
 $('url-input').addEventListener('input', () => { urlDraft = $('url-input').value; });
 $('apply-url').addEventListener('click', () => {
   try { state.url = validatePublicUrl($('url-input').value.trim()); }
@@ -246,6 +271,7 @@ $('apply-url').addEventListener('click', () => {
   codeDraft = null; urlDraft = null;
   state.scripts = $('url-scripts').checked;
   previews.clear();
+  state.urls = []; state.clicks = [];
   state.snapshot = false; state.dpr = null; state.colorScheme = 'light';
   $('filename').textContent = new URL(state.url).hostname; $('source-state').textContent = 'URL 스냅샷'; $('url-dialog').close(); render();
 });
@@ -254,16 +280,16 @@ $('apply-code').addEventListener('click', () => { if (!$('code').value.trim()) r
 document.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); $('canvas').classList.add('dragover'); } });
 document.addEventListener('dragleave', e => { if (!e.relatedTarget) $('canvas').classList.remove('dragover'); });
 document.addEventListener('drop', e => { if (!e.dataTransfer.files.length) return; e.preventDefault(); $('canvas').classList.remove('dragover'); openFile(e.dataTransfer.files[0]); });
-$('device').addEventListener('change', () => { state.selections[state.active] = $('device').value; state.dpr = null; render(); });
+$('device').addEventListener('change', () => { state.selections[state.active] = $('device').value; state.clicks[state.active] = []; state.dpr = null; render(); });
 for (const id of ['width', 'height']) $(id).addEventListener('change', () => {
   const width = $('width').value, height = $('height').value;
   if (!validDimension(width) || !validDimension(height)) { toast('크기는 240–2048 사이의 정수여야 합니다.'); $('width').value = currentProfile().width; $('height').value = currentProfile().height; return; }
   state.custom[state.active] = state.landscape ? { width: Number(height), height: Number(width) } : { width: Number(width), height: Number(height) };
-  state.selections[state.active] = 'custom'; render();
+  state.selections[state.active] = 'custom'; state.clicks[state.active] = []; render();
 });
-$('rotate').addEventListener('click', () => { state.landscape = !state.landscape; render(); });
+$('rotate').addEventListener('click', () => { state.landscape = !state.landscape; state.clicks = []; render(); });
 $('scale').addEventListener('change', scaleCards);
-$('reload').addEventListener('click', () => { previews.clear(); render(); });
+$('reload').addEventListener('click', () => { previews.clear(); state.clicks = []; render(); });
 $('safe').addEventListener('change', scheduleScan);
 $('inspect').addEventListener('change', () => { $('panel').hidden = !$('inspect').checked; if (!$('inspect').checked) { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); } scaleCards(); });
 $('min-font').addEventListener('change', () => { const n = Number($('min-font').value); if (!Number.isFinite(n) || n < 6 || n > 32) { $('min-font').value = 12; toast('최소 글자 기준은 6–32px입니다.'); } scheduleScan(); });

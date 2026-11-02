@@ -48,12 +48,12 @@ Playwright는 로컬 loopback 서버의 새 브라우저 컨텍스트에서 실�
 
 - 검수용 HTML 작성 시 [Effective HTML](https://github.com/plannotator/effective-html)을 참고한다. 구조 탐색은 `html-wireframe`, 상태·입력 흐름은 `html-prototype` 원칙을 사용한다. 기존 앱 코드 수정에 단일 HTML 산출물 규칙을 강제하지 않는다.
 - 예제는 `examples/`에 단일 HTML로 작성하며 CSS·JavaScript를 인라인으로 포함한다. 외부 CDN·API·자동 저장·실제 전송 없이 실제 한국어 문구·의미 있는 label·키보드 조작·오류 복구를 제공한다.
-- 정적 iframe은 스크립트 차단 상태를 유지하고, Chromium 검사는 초기 화면 스냅샷으로 설명한다. 클릭 흐름·포커스·상태 전환은 별도 Playwright 검사로 검증한다.
+- 정적 iframe은 스크립트 차단 상태를 유지한다. Chromium 결과는 전체 페이지 이미지이며 버튼·링크 클릭 후 새 격리 컨텍스트에서 동작을 처리해 결과를 갱신한다. 실시간 브라우저·입력값 편집·로그인·폼 전송으로 설명하지 않는다. 클릭 흐름·포커스·상태 전환은 실제 앱에서 확인한다.
 - [Android Skills](https://github.com/android/skills)는 크기·테마·상태 조합 및 콘텐츠 가림의 검수 관점으로 참고한다. Compose·Gradle·SDK 지침이나 Android dp 수치를 현재 웹 프로젝트에 직접 적용하지 않는다.
 - 디렉토리·사용법·후속 작업 변경 시 README.md·PLAN.md·docs/Design.md의 관련 기록을 맞춘다.
 
 ## 검증과 보고
-변경 영향에 맞는 직접 검증을 수행한다. npm run check, npm test, npm run test:browser, npm run test:secrets를 실행한다. URL 변경 시 npm run test:url로 공개 example.com 읽기 검증, 의존성 변경 시 npm audit을 추가한다. 실패를 수정하고 다시 검증한다. 각 Phase 완료 시 README.md / PLAN.md / docs/Design.md의 상태와 검증 기록을 맞추고 로컬 커밋한다. README는 명사형 문체로 유지한다. 완료 보고에는 변경 내용, 실행한 검증, 실제 남은 제약만 적는다.
+변경 영향과 사용자 지시에 맞는 직접 검증을 수행한다. npm run check, npm test, npm run test:browser, npm run test:url, npm run test:secrets는 사용 가능한 명령이며 실제 앱 확인과 모의 검사를 구분한다. 사용자가 모의 환경 검사를 제외하면 실제 앱·실주소로 해당 범위를 확인하고 실행하지 않은 명령을 통과로 기록하지 않는다. 의존성 변경 시 npm audit을 추가한다. 실패를 수정하고 다시 검증한다. 각 Phase 완료 시 README.md / PLAN.md / docs/Design.md의 상태와 검증 기록을 맞추고 로컬 커밋한다. README는 명사형 문체로 유지한다. 완료 보고에는 변경 내용, 실행한 검증, 실제 남은 제약만 적는다.
 
 ## 프로덕션 배포 전 점검
 

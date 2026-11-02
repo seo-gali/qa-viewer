@@ -72,13 +72,18 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
     });
     await context.routeWebSocket('**/*', socket => { blockedRequests++; socket.close(); });
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 6000 });
+    for (const selector of config.clicks) {
+      const target = page.locator(`css=${selector}`).first();
+      await target.evaluate(element => { if (element.tagName === 'A') element.setAttribute('target', '_self'); }, undefined, { timeout: 3000 });
+      await target.click({ timeout: 3000 });
+    }
     // Wait for active GETs, without an extra quiet period for polling sites.
     const settleUntil = Date.now() + 3000;
     while (config.url && config.scripts && activeFetches && Date.now() < settleUntil) await new Promise(resolve => setTimeout(resolve, 25));
     await page.evaluate(() => Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 500))]));
     await page.waitForTimeout(200);
     const runtime = await page.evaluate(() => ({
-      innerWidth, innerHeight, layoutWidth: document.documentElement.clientWidth, layoutHeight: document.documentElement.clientHeight,
+      innerWidth, innerHeight, scrollX, scrollY, layoutWidth: document.documentElement.clientWidth, layoutHeight: document.documentElement.clientHeight,
       visualWidth: visualViewport?.width, visualHeight: visualViewport?.height, visualScale: visualViewport?.scale,
       dpr: devicePixelRatio, touchPoints: navigator.maxTouchPoints, userAgent: navigator.userAgent,
       screen: { width: screen.width, height: screen.height }, colorScheme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -87,12 +92,31 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
     const safe = config.safeArea ? p.safe.map(value => value * safeRatio) : [0, 0, 0, 0];
     const report = await page.evaluate(inspectDocument, { minFont: config.minFont, safe, layoutViewport: true });
     const screenshot = await page.screenshot({ type: 'png', scale: 'css', fullPage: true, animations: 'disabled', timeout: 5000 });
+    const interactive = await page.evaluate(() => {
+      const scale = visualViewport?.scale ?? 1;
+      return [...document.querySelectorAll('a[href],button,[role="button"],summary,input[type="button"],input[type="submit"],input[type="reset"]')].flatMap(element => {
+        const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+        if (!rect.width || !rect.height || style.visibility === 'hidden' || element.disabled || element.getAttribute('aria-disabled') === 'true') return [];
+        const path = [];
+        for (let node = element; node; node = node.parentElement) {
+          if (node.id && document.querySelectorAll(`#${CSS.escape(node.id)}`).length === 1) { path.unshift(`#${CSS.escape(node.id)}`); break; }
+          const siblings = [...(node.parentElement?.children ?? [node])].filter(sibling => sibling.localName === node.localName);
+          path.unshift(`${node.localName}:nth-of-type(${siblings.indexOf(node) + 1})`);
+        }
+        const selector = path.join(' > ');
+        if (selector.length > 2048) return [];
+        const buttonValue = element.matches('input[type="button"],input[type="submit"],input[type="reset"]') ? element.value : '';
+        return [{ selector, href: element instanceof HTMLAnchorElement ? element.href : null, label: (element.getAttribute('aria-label') || element.textContent || buttonValue || element.getAttribute('title') || element.getAttribute('href') || '버튼').trim().slice(0, 120), x: (rect.left + scrollX) * scale, y: (rect.top + scrollY) * scale, width: rect.width * scale, height: rect.height * scale }];
+      }).slice(0, 500);
+    });
     return {
       engine: 'Chromium', browserVersion: browser.version(), referenceDevice: referenceName,
       profile: p, settings: { dpr: config.dpr, scripts: config.scripts, colorScheme: config.colorScheme, minFont: config.minFont, safeArea: config.safeArea },
       runtime, report, errors, blockedRequests, remoteRequests, remoteBytes, source: config.url ? { type: 'url', url: config.url, finalUrl: page.url() } : { type: 'html' }, durationMs: Date.now() - started,
       image: `data:image/png;base64,${screenshot.toString('base64')}`,
       imageSize: { width: screenshot.readUInt32BE(16), height: screenshot.readUInt32BE(20) },
+      scroll: { left: runtime.scrollX * (runtime.visualScale ?? 1), top: runtime.scrollY * (runtime.visualScale ?? 1) },
+      interactive,
       capturedAt: new Date().toISOString(), note: 'Chromium mobile context snapshot. Safe Area / Fold env variables are not emulated.'
     };
   };
