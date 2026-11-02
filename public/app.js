@@ -6,13 +6,13 @@ import { capture, setupEmulation } from './emulation-ui.js';
 import { validatePublicUrl } from './public-url.js';
 
 const $ = id => document.getElementById(id);
-const state = { html: sample, url: null, scripts: false, filename: 'qa-sample.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'pixel-7', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
+const state = { html: sample, url: null, scripts: false, snapshot: false, dpr: null, colorScheme: 'light', filename: 'qa-sample.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'pixel-7', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
 let toastTimer, scanTimer;
 let codeDraft = null, urlDraft = null;
 let previewJob = Promise.resolve();
-const snapshotMode = () => Boolean(state.url || state.scripts);
+const snapshotMode = () => Boolean(state.url || state.scripts || state.snapshot);
 function emulationInput(index = state.active) {
-  return { ...(state.url ? { url: state.url } : { html: state.html }), scripts: state.scripts, profile: state.selections[index], custom: state.custom[index], landscape: state.landscape, dpr: resolveProfile(state.selections[index], state.custom[index], state.landscape).dpr, minFont: Number($('min-font').value), safeArea: $('safe').checked };
+  return { ...(state.url ? { url: state.url } : { html: state.html }), scripts: state.scripts, profile: state.selections[index], custom: state.custom[index], landscape: state.landscape, dpr: state.dpr ?? resolveProfile(state.selections[index], state.custom[index], state.landscape).dpr, colorScheme: state.colorScheme, minFont: Number($('min-font').value), safeArea: $('safe').checked };
 }
 export function toast(message, kind = 'error', input) {
   const dialog = document.querySelector('dialog[open]');
@@ -179,6 +179,8 @@ function check(message, ok) {
 }
 const issueTypes = { overflow: 'Horizontal overflow', text: '작은 텍스트', safe: 'Safe Area 침범 가능', fixed: '화면 밖 fixed 요소', clipped: '콘텐츠 잘림 가능', link: '깨진 내부 링크', image: '이미지 로드 실패' };
 function displayReport(card) {
+  $('preview-actions').hidden = !card?.result;
+  $('clear-box').hidden = snapshotMode();
   if (card?.error) { $('issue-count').textContent = '—'; $('checks').replaceChildren(check(card.error, false)); $('issues').replaceChildren(); const retry = document.createElement('button'); retry.textContent = '다시 시도'; retry.addEventListener('click', render); $('issues').append(retry); $('breakpoints').textContent = ''; $('status').textContent = '불러오기 실패'; return; }
   if (!card?.report) { $('issue-count').textContent = '…'; $('checks').replaceChildren(); $('issues').replaceChildren(); $('breakpoints').textContent = '문서 로딩 중'; $('status').textContent = '문서 렌더링 / 검사 중'; return; }
   const r = card.report;
@@ -209,7 +211,7 @@ function displayReport(card) {
 }
 function loadHTML(html, filename, source, scripts = false) {
   if (new Blob([html]).size > 2 * 1024 * 1024) { toast('HTML은 최대 2MB까지 열 수 있습니다.'); return false; }
-  state.html = html; state.url = null; state.scripts = scripts; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
+  state.html = html; state.url = null; state.scripts = scripts; state.snapshot = false; state.dpr = null; state.colorScheme = 'light'; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
   codeDraft = null; urlDraft = null;
   toast(`${filename} 미리보기를 적용했습니다.`, 'success'); return true;
 }
@@ -229,6 +231,7 @@ $('apply-url').addEventListener('click', () => {
   catch (error) { toast(error.message, 'error', $('url-input')); return; }
   codeDraft = null; urlDraft = null;
   state.scripts = $('url-scripts').checked;
+  state.snapshot = false; state.dpr = null; state.colorScheme = 'light';
   $('filename').textContent = new URL(state.url).hostname; $('source-state').textContent = 'URL 스냅샷'; $('url-dialog').close(); render();
 });
 $('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('apply-url').click(); } });
@@ -236,7 +239,7 @@ $('apply-code').addEventListener('click', () => { if (!$('code').value.trim()) r
 document.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); $('canvas').classList.add('dragover'); } });
 document.addEventListener('dragleave', e => { if (!e.relatedTarget) $('canvas').classList.remove('dragover'); });
 document.addEventListener('drop', e => { e.preventDefault(); $('canvas').classList.remove('dragover'); openFile(e.dataTransfer.files[0]); });
-$('device').addEventListener('change', () => { state.selections[state.active] = $('device').value; render(); });
+$('device').addEventListener('change', () => { state.selections[state.active] = $('device').value; state.dpr = null; render(); });
 for (const id of ['width', 'height']) $(id).addEventListener('change', () => {
   const width = $('width').value, height = $('height').value;
   if (!validDimension(width) || !validDimension(height)) { toast('크기는 240–2048 사이의 정수여야 합니다.'); $('width').value = currentProfile().width; $('height').value = currentProfile().height; return; }
@@ -249,7 +252,6 @@ $('reload').addEventListener('click', render);
 $('safe').addEventListener('change', scheduleScan);
 $('inspect').addEventListener('change', () => { $('panel').hidden = !$('inspect').checked; if (!$('inspect').checked) { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); } scaleCards(); });
 $('min-font').addEventListener('change', () => { const n = Number($('min-font').value); if (!Number.isFinite(n) || n < 6 || n > 32) { $('min-font').value = 12; toast('최소 글자 기준은 6–32px입니다.'); } scheduleScan(); });
-$('rescan').addEventListener('click', scheduleScan);
 $('clear-box').addEventListener('click', () => { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); displayReport(state.cards[state.active]); });
 $('compare').addEventListener('click', () => { state.compare = !state.compare; state.active = 0; render(); });
 $('add-device').addEventListener('click', () => { if (state.selections.length >= 4) return; state.selections.push('iphone-se'); state.active = state.selections.length - 1; render(); });
@@ -263,5 +265,5 @@ document.querySelectorAll('dialog').forEach(dialog => {
   dialog.addEventListener('close', clearError);
   dialog.addEventListener('input', clearError);
 });
-setupEmulation(emulationInput, toast);
+setupEmulation(emulationInput, settings => { Object.assign(state, settings); state.snapshot = true; render(); }, () => state.cards[state.active]?.result, toast);
 render();

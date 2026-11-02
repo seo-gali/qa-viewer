@@ -38,7 +38,7 @@ try {
     await page.fill('#emulation-dpr','0'); await page.click('#run-emulation');
     assert.equal(await page.evaluate(()=>document.activeElement.id),'emulation-dpr');
     assert.equal(await page.locator('#emulation-dpr').getAttribute('aria-invalid'),'true');
-    await page.getByRole('button',{name:'브라우저 검사 닫기',exact:true}).click();
+    await page.getByRole('button',{name:'화면 설정 닫기',exact:true}).click();
     await page.goto(base+'/not-a-page'); assert.ok((await page.title()).includes('찾을 수 없습니다')); await noOverflow(`404 ${width}`); await page.getByRole('link',{name:'작업 공간으로 돌아가기 →'}).click(); assert.equal(new URL(page.url()).pathname,'/');
   }
   await page.setViewportSize({width:390,height:844}); await page.goto(base); await page.waitForTimeout(200); await mkdir('artifacts',{recursive:true}); await page.screenshot({path:'artifacts/mobile.png',fullPage:true});

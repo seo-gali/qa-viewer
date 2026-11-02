@@ -33,6 +33,8 @@
 
 `emulation-ui.js`의 capture가 API 요청·응답 처리를 공유한다. app.js는 기존 generation으로 이전 화면 결과를 버리고 API 동시 검사 1개에 맞춰 카드 검사를 순차 실행한다. 진행 중인 요청은 완료를 기다리며 오래된 카드의 후속 요청은 생략한다. 불러오기 실패 시 원인과 재시도 버튼을 표시한다. 최소 글자·Safe Area 변경 시 스냅샷도 재검사한다.
 
+2026-11-02 별도 검사 결과 창과 두 번째 검사 요청 경로를 제거했다. 화면 설정 창은 DPR·테마만 적용하고, app.js의 기존 렌더링 경로가 본 화면의 결과를 갱신한다. JavaScript 실행 선택은 HTML·URL 입력창에 유지한다. 적용한 HTML은 정적 이미지로 전환하며 새 콘텐츠를 열면 기본 보기로 돌아간다. 저장은 현재 선택한 카드의 결과를 그대로 사용하고 별도 검사를 실행하지 않는다. 정적 HTML의 DOM 검사와 격리된 이미지 검사는 기존 보안 경계에 따라 유지하며 실시간 원격 브라우저는 추가하지 않는다.
+
 기기 목록은 설치된 Playwright의 구체적인 모델을 사용한다. CSS 크기는 screen이 있으면 screen, 없으면 viewport를 사용하며 DPR·UA도 해당 모델을 참조한다. 단위 테스트에서 정의 일치를 검사한다. 주소창·OS·실제 Safari·물리 픽셀 재현을 뜻하지 않는다. 임의 너비 목록은 화면에서 제거하되 기존 Generic API 프로필은 유지한다. 직접 입력은 계속 지원한다. Safe Area·cutout·hinge는 참고 시각화다.
 
 JavaScript를 선택한 URL은 DOMContentLoaded 후 네트워크 유휴를 최대 3초 기다린다. 주기적 요청 사이트에서는 제한 후 촬영하며 완전 로딩을 보장하지 않는다. 2026-10-27 실주소 검사에서 hourboard·ktwiz의 화면 표시와 데이터 로딩을 확인했다. ktwiz의 POST 1건은 정책상 차단했고 입력 fragment는 유지했으나 해당 사이트 HTML에 boardSec 대상 ID가 없었다. 앱이나 원격 사이트에 임의 ID를 추가하지 않았다.
@@ -80,3 +82,5 @@ public-url.js는 자격 증명·비표준 포트·사설 및 예약 IP·IPv6·HT
 보완 최종 검증: `npm run check`, `npm test` (14개), `npm run test:browser`, `npm run test:url`, `npm run test:secrets` 종료 코드 0. 서버·공개 리소스 진입점에서 모의 24.22.0 차단 및 실제 v24.22.1의 HTTP 200 확인. 실제 구버전 바이너리 설치 검증은 미실시. 로컬 문서 링크 15개 확인. 의존성 버전·lock 파일·전역 MCP 설정 변경 없음.
 
 2026-10-27 URL·화면 수정 최종 검증: `npm run check`, `npm test` (15개), `npm run test:browser` (5개 검사), `npm run test:url`, `npm run test:secrets`, `git diff --check` 종료 코드 0. source-preview-browser.mjs에서 삽입 차단 URL·fragment·지연 GET·POST 차단·모델 변경·순차 비교·실패/복구·DOCTYPE 인라인 JS·외부 통신 차단을 검증했다. 사용자 제공 두 실주소는 별도 로컬 UI 검사에서 스냅샷 표시를 확인했다. 붙여넣은 전체 원본 미제공으로 해당 문서 자체의 재현은 미실시했다.
+
+2026-11-02 직접 확인: 변경 전에 앱을 실제 실행하고 설치된 Chrome 창에서 HTML 스크롤과 hourboard 표시를 확인했다. 변경 후 같은 실제 Chrome에서 파일·붙여넣기·두 실주소·설정 오류 포커스·테마·크기 변경·비교·선택 화면 저장·좁은 창을 확인했다. 저장 파일을 다시 읽었고 다운로드 시 추가 검사 요청이 없었다. 구문·시크릿 검사 통과. 기존 모의 브라우저 검사는 사용자 요청으로 실행하지 않았으며 새 검사 단계·규칙은 추가하지 않았다. URL 이미지의 스크롤·클릭 제약은 남아 있다.

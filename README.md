@@ -36,19 +36,19 @@ npm start
 | 검수 오버레이 | Safe Area·Dynamic Island·notch·Fold/Flip hinge·요소 bounding box |
 | Layout Inspector | 가로 overflow·잘림·작은 글자·화면 밖 fixed·깨진 내부 링크·이미지 로드 실패·media query |
 | 비교 | 동일 콘텐츠의 2–4개 독립 viewport·카드별 기기 및 검사 선택·공통 Fit 배율 |
-| Chromium 검사 | 모바일 viewport meta·DPR·resolution media query·touch·UA·테마·선택적 JavaScript 실행 |
+| 화면 설정 | DPR·밝은/어두운 테마 적용 및 본 화면의 검사 결과 표시 |
 | 결과 저장 | CSS pixel 크기의 PNG·WebP 85% 압축·JSON QA 리포트 |
 | UI 마감 | 도구 모음 내 로고·상시 표시 설정·페이지 메타·SVG 파비콘·푸터·자동 저작권 연도·맞춤 404·성공/오류 안내 |
 
 ## 사용 순서
 
-1. HTML 파일·코드·공개 HTTPS URL 선택. 스크립트 기반 화면의 JavaScript 실행 선택.
-2. 기기 프로필 또는 Custom 크기 지정.
-3. 회전·Fit 및 도구 모음의 Safe Area·최소 글자 기준에 따른 콘텐츠 확인.
-4. Compare를 통한 2–4개 기기 비교 및 카드별 검사 선택.
-5. Inspect 결과 확인. 정적 HTML의 경고 선택 시 해당 요소 bounding box 표시. 스냅샷의 요소 선택·버튼 조작 제외.
-6. Chromium 검사의 DPR·테마·JavaScript 조건 지정 및 스냅샷 검사.
-7. PNG·WebP·JSON 결과 다운로드.
+1. HTML 파일·코드·공개 HTTPS URL 열기. 스크립트 기반 화면의 JavaScript 실행 선택.
+2. 기기 또는 직접 입력으로 화면 크기 선택.
+3. 본 화면에서 콘텐츠와 검수 결과 확인.
+
+선택 기능: 회전·자동 맞춤·비교·Safe Area·글자 기준·화면 설정·결과 저장. 정적 HTML의 경고 선택 시 해당 요소 표시. 정적 이미지의 스크롤·버튼 조작 제외.
+
+별도 검사 결과 창과 중복 새로고침 버튼 제거. JavaScript 실행 선택은 HTML·URL 입력창에만 배치. 화면 설정을 적용한 HTML은 정적 이미지 표시로 전환하며, 파일이나 코드를 다시 열면 기본 보기 복귀.
 
 ## HTML 제작·검수 흐름
 
@@ -66,7 +66,7 @@ npm start
 1. `npm start` 실행 후 파일 열기에서 `examples/responsive-form.html` 선택.
 2. 기기 프로필 또는 Custom 크기를 이용한 375·390·768·1440 CSS px 비교 및 회전 확인.
 3. 정적 미리보기의 입력 비활성 상태·긴 한국어 문구·줄바꿈·가로 넘침 확인.
-4. Chromium 검사에서 Light/Dark 및 JavaScript OFF/ON의 초기 화면 스냅샷 확인.
+4. 화면 설정에서 밝은/어두운 테마 적용 및 본 화면 확인. JavaScript 실행 여부는 콘텐츠 입력 시 선택.
 5. 독립 브라우저에서 예제 파일을 열거나 `node tests/artifact-browser.mjs` 실행을 통한 입력 오류·완료·수정·키보드·포커스 이동 확인.
 
 예제의 인라인 CSS·JavaScript 및 시스템 폰트 사용. 외부 CDN·API·저장 기능·실제 신청 전송 없음. 실제 개인정보 대신 검수용 내용 사용 권장. 예제·문서·서버 소스의 로컬 HTTP 제공 제외 및 기존 파일 허용 목록 유지.
@@ -75,7 +75,7 @@ Chromium 검사 결과의 스냅샷 제공에 따른 클릭 흐름 조작 미지
 
 ## UX 적용
 
-- HTML 열기·Chromium 검사의 주요 버튼 강조. 로고·입력·기기·검수 설정의 도구 모음 배치 및 모바일 줄바꿈. 상단 헤더·도구 메뉴·설정 더보기 제거.
+- HTML 열기의 주요 버튼 강조. 로고·입력·기기·검수 설정의 도구 모음 배치 및 모바일 줄바꿈. 상단 헤더·도구 메뉴·설정 더보기·별도 검사 결과 창 제거.
 - 태그라인·중복 안내·보조 레이블 제거 및 기능명·동작·상태 중심의 문구 사용. 검수 한계와 지원 범위의 접이식 제공.
 - 기본 샘플의 홍보 문구·장식 대신 검수 목록·내부 링크·확인 항목 제공.
 - 예제 폼의 blur/제출 검증, 오류 입력의 포커스·스크롤 이동, 완료 후 수정 시 입력 내용 유지.
@@ -146,14 +146,16 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 
 ## 검증 결과
 
-현재 변경 검증 기준일: 2026-10-27. Node.js v24.22.1 환경의 전체 회귀 검사 결과 기록.
+현재 변경 검증 기준일: 2026-11-02. `npm start` 실행 후 설치된 Chrome 156.0.8078.76의 실제 창에서 파일 열기·HTML 붙여넣기·hourboard/ktwiz 실주소·크기 변경·비교·화면 설정·저장 확인. 가짜 응답·기기 에뮬레이션 없는 직접 실행. 이미지와 검사 결과의 실제 저장 후 재읽기 및 저장 시 중복 검사 요청 없음 확인.
+
+변경 전 실행과 변경 후 확인 각 1회. 구문·시크릿 검사 통과. 사용자 요청에 따라 모의 환경 검사 미실행. 기존 브라우저 검사 파일의 변경된 화면 선택자와 기대값 수정 및 실행 제외. 아래 이전 검사 기록과 구분.
 
 | 명령 | 검증 범위 | 결과 |
 | --- | --- | --- |
 | `npm run check` | JavaScript/Node 모듈 구문 | 통과 |
-| `npm test` | 모델 정의 일치·프로필·URL·입력·세션·Origin·제한·404·런타임 경계값·스테이징 단독 탐지 | 15개 통과 |
-| `npm run test:browser` | viewport/Fit·격리·비교·모바일 브라우저·UI·HTML 예제 상태/키보드/테마 | 통과 |
-| `npm run test:url` | example.com 실제 HTTPS 콘텐츠 및 Chromium 스냅샷 | 통과 |
+| `npm test` | 모델 정의 일치·프로필·URL·입력·세션·Origin·제한·404·런타임 경계값·스테이징 단독 탐지 | 이전 15개 통과·이번 미실행 |
+| `npm run test:browser` | viewport/Fit·격리·비교·모바일 브라우저·UI·HTML 예제 상태/키보드/테마 | 이전 통과·이번 미실행 |
+| `npm run test:url` | example.com 실제 HTTPS 콘텐츠 및 Chromium 스냅샷 | 이전 통과·이번 미실행 |
 | `npm run test:secrets` | 전체 로컬 커밋·추적 작업 트리·스테이징의 시크릿 파일/인식 키 패턴 | 발견 0건 |
 | `npm audit` | 설치 의존성의 알려진 취약점 | 2026-10-05 기록: 0건·이번 의존성 변경 없음 |
 
@@ -181,6 +183,8 @@ HTML 모드의 외부 리소스 차단 및 인라인 이미지·스타일·폰�
 
 브라우저 검증 후 `artifacts/`의 화면 캡처 생성 및 Git 제외:
 
+- `actual-before.png`, `actual-after.png`, `actual-after-narrow.png` — 2026-11-02 설치된 Chrome 실제 창의 수정 전·후 및 좁은 창 확인.
+- `actual-saved.png`, `actual-saved.webp`, `actual-saved.json` — 본 화면에서 실제 저장 후 재읽기 확인.
 - `phase-1.png`, `phase-2.png`, `phase-3.png` — 단계별 화면.
 - `phase-3-url.png`, `phase-3-live-url.png` — URL 검사.
 - `verified-hourboard.png`, `verified-ktwiz.png` — 사용자 제공 실주소의 수정된 UI 확인. 검증 시점 스냅샷.
@@ -214,7 +218,7 @@ qa-viewer/
 | `server/server.mjs`, `server/emulation-config.mjs`, `server/emulator.mjs` | 로컬 서버·API 검증·Chromium 검사 |
 | `server/runtime.mjs`, `tests/runtime.test.mjs` | 지원 메이저 및 보안 패치 하한 검사·경계값 검증 |
 | `public/public-url.js`, `server/public-resource.mjs` | URL 검증·공개 HTTPS 리소스 접근 |
-| `public/emulation-ui.js` | 검사 결과·다운로드·WebP 압축 |
+| `public/emulation-ui.js` | 검사 요청·화면 설정·현재 결과 저장·WebP 압축 |
 | `public/sample.js`, `public/404.html`, `public/favicon.svg` | 기본 샘플·404·파비콘 |
 | `examples/responsive-form.html`, `tests/artifact-browser.mjs` | 검수용 프로토타입·상태 및 키보드 회귀 검사 |
 | `tests/security-audit.mjs`, `tests/security-audit.test.mjs` | 작업 트리·스테이징·이력 검사 및 값 비노출 회귀 검사 |
