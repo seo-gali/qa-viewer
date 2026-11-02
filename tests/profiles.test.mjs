@@ -13,7 +13,7 @@ test('named model dimensions, DPR and UA reference match installed Playwright de
 test('all profiles have bounded CSS dimensions and immutable rotated insets', () => {
   for (const p of profiles) { assert.ok(validDimension(p.width)); assert.ok(validDimension(p.height)); assert.equal(resolveProfile(p.id, undefined, true).width, p.height); }
   assert.deepEqual(resolveProfile('iphone', undefined, true).safe, [0, 47, 0, 34]);
-  assert.deepEqual(profiles[0].safe, [47, 0, 34, 0]);
+  assert.deepEqual(profiles.find(p => p.id === 'iphone').safe, [47, 0, 34, 0]);
   assert.equal(resolveProfile('fold', undefined, true).hinge, 'horizontal');
 });
 test('custom dimensions reject non-finite, fractional and unbounded input', () => {

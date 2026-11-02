@@ -37,7 +37,7 @@ try {
   assert.equal(normal.report.horizontalOverflow, true); assert.equal(normal.report.viewport.width,390); assert.ok(normal.report.issues.some(i=>i.type==='text'));
   assert.equal(normal.settings.scripts, false); assert.ok(normal.report.metaViewport.includes('device-width'));
   assert.equal(normal.report.mediaQueries.find(q=>q.query.includes('min-resolution')).matches,true);
-  const png = Buffer.from(normal.image.split(',')[1], 'base64'); assert.equal(png.readUInt32BE(16),390); assert.equal(png.readUInt32BE(20),844);
+  const png = Buffer.from(normal.image.split(',')[1], 'base64'); assert.equal(png.readUInt32BE(16),normal.imageSize.width); assert.equal(png.readUInt32BE(20),normal.imageSize.height); assert.ok(normal.imageSize.width>=390); assert.ok(normal.imageSize.height>=844);
   await mkdir('artifacts',{recursive:true}); await writeFile('artifacts/emulated-iphone.png',png);
   const noMeta = await run({html:'<!doctype html><div>No viewport meta</div>',profile:'iphone'});
   assert.equal(noMeta.report.metaViewport,null); assert.equal(noMeta.runtime.layoutWidth,980);
@@ -68,7 +68,7 @@ try {
   await page.goto(base); await page.click('#emulate'); await page.click('#run-emulation');
   await page.waitForFunction(()=>!document.getElementById('preview-actions').hidden,{},{timeout:25000});
   assert.equal(await page.locator('#emulation-dialog').isVisible(),false);
-  assert.equal(await page.locator('.preview-shot').getAttribute('width'),'390');
+  assert.equal(await page.locator('.device').evaluate(el=>Number.parseFloat(el.style.width)),390);
   const downloadImage = page.waitForEvent('download'); await page.click('#download-image'); assert.equal((await downloadImage).suggestedFilename(),'qa-iphone.png');
   const downloadReport = page.waitForEvent('download'); await page.click('#download-report'); assert.equal((await downloadReport).suggestedFilename(),'qa-iphone.json');
   const downloadWebp = page.waitForEvent('download'); await page.click('#download-webp'); assert.equal((await downloadWebp).suggestedFilename(),'qa-iphone.webp');

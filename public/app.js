@@ -10,6 +10,7 @@ const state = { html: sample, url: null, scripts: false, snapshot: false, dpr: n
 let toastTimer, scanTimer;
 let codeDraft = null, urlDraft = null;
 let previewJob = Promise.resolve();
+const previews = new Map();
 const snapshotMode = () => Boolean(state.url || state.scripts || state.snapshot);
 function emulationInput(index = state.active) {
   return { ...(state.url ? { url: state.url } : { html: state.html }), scripts: state.scripts, profile: state.selections[index], custom: state.custom[index], landscape: state.landscape, dpr: state.dpr ?? resolveProfile(state.selections[index], state.custom[index], state.landscape).dpr, colorScheme: state.colorScheme, minFont: Number($('min-font').value), safeArea: $('safe').checked };
@@ -69,8 +70,12 @@ function render() {
     for (const [index, card] of cards.entries()) {
       if (generation !== state.generation || !snapshot) break;
       try {
-        const data = await capture(inputs[index]);
+        const { html, url, ...settings } = inputs[index];
+        const key = JSON.stringify(settings);
+        const data = previews.get(key) ?? await capture(inputs[index]);
         if (generation !== state.generation) break;
+        if (!previews.has(key)) { if (previews.size >= 8) previews.delete(previews.keys().next().value); previews.set(key, data); }
+        card.image.width = data.imageSize.width; card.image.height = data.imageSize.height;
         card.report = data.report; card.result = data; card.image.src = data.image; card.message.hidden = true;
         if (card.review) card.review.textContent = `${card.p.width} × ${card.p.height} · ${data.report.issues.length} 경고`;
       } catch (error) { card.error = error.message; card.message.textContent = `${error.message} 상단의 다시 렌더링으로 재시도하세요.`; }
@@ -106,7 +111,13 @@ function createCard(p, index) {
   if (snapshotMode()) {
     const image = document.createElement('img'); image.className = 'preview-shot'; image.width = p.width; image.height = p.height; image.alt = `${p.name} Chromium 스냅샷`;
     const message = document.createElement('p'); message.className = 'snapshot-state'; message.setAttribute('role', 'status'); message.textContent = 'Chromium에서 불러오는 중…';
-    device.replaceChildren(image, message, overlay); card.image = image; card.message = message; updateOverlay(card); return;
+    image.draggable = false;
+    const scroll = document.createElement('div'); scroll.className = 'preview-scroll'; scroll.tabIndex = 0; scroll.setAttribute('aria-label', `${p.name} 페이지 스크롤`); scroll.append(image);
+    let drag = null;
+    scroll.addEventListener('pointerdown', event => { if (event.button !== 0 || event.pointerType === 'touch') return; scroll.focus(); drag = { x: event.clientX, y: event.clientY, left: scroll.scrollLeft, top: scroll.scrollTop }; scroll.setPointerCapture(event.pointerId); event.preventDefault(); });
+    scroll.addEventListener('pointermove', event => { if (!drag) return; const scale = device.getBoundingClientRect().width / device.offsetWidth; scroll.scrollLeft = drag.left + (drag.x - event.clientX) / scale; scroll.scrollTop = drag.top + (drag.y - event.clientY) / scale; });
+    scroll.addEventListener('pointerup', () => { drag = null; }); scroll.addEventListener('pointercancel', () => { drag = null; });
+    device.replaceChildren(scroll, message, overlay); card.image = image; card.message = message; updateOverlay(card); return;
   }
   iframe.addEventListener('load', () => {
     if (card.generation !== state.generation) return;
@@ -130,8 +141,11 @@ function createCard(p, index) {
 }
 function scaleCards() {
   const canvas = $('canvas');
-  const availableHeight = Math.max(200, canvas.clientHeight - (state.compare ? 192 : 154));
-  const scale = $('scale').value === 'fit' ? fitScale(state.cards.map(c => c.p.width + 10), state.cards.map(c => c.p.height + 10), Math.max(240, canvas.clientWidth - 72), availableHeight) : Number($('scale').value);
+  const availableHeight = Math.max(200, canvas.offsetHeight - (state.compare ? 192 : 154));
+  const reference = profiles.filter(p => p.referenceDevice);
+  const widths = state.compare ? state.cards.map(c => c.p.width + 10) : [Math.max(...reference.map(p => state.landscape ? p.height : p.width), state.cards[0].p.width) + 10];
+  const heights = state.compare ? state.cards.map(c => c.p.height + 10) : [Math.max(...reference.map(p => state.landscape ? p.width : p.height), state.cards[0].p.height) + 10];
+  const scale = $('scale').value === 'fit' ? fitScale(widths, heights, Math.max(240, canvas.offsetWidth - 72), availableHeight) : Number($('scale').value);
   for (const card of state.cards) {
     card.device.style.transform = `scale(${scale})`;
     card.article.style.width = `${(card.p.width + 10) * scale}px`;
@@ -142,8 +156,8 @@ function scaleCards() {
 function updateOverlay(card) {
   card.overlay.replaceChildren();
   const p = card.p;
-  if (p.cutout) { const cutout = document.createElement('div'); cutout.className = `cutout ${p.cutout}`; card.overlay.append(cutout); }
-  if (p.hinge) { const hinge = document.createElement('div'); hinge.className = `hinge ${p.hinge}`; hinge.title = 'Fold / Flip visualization'; card.overlay.append(hinge); }
+  if (p.cutout && $('safe').checked) { const cutout = document.createElement('div'); cutout.className = `cutout ${p.cutout}`; card.overlay.append(cutout); }
+  if (p.hinge && $('safe').checked) { const hinge = document.createElement('div'); hinge.className = `hinge ${p.hinge}`; hinge.title = 'Fold / Flip visualization'; card.overlay.append(hinge); }
   if ($('safe').checked) {
     ['top', 'right', 'bottom', 'left'].forEach((side, i) => {
       if (!p.safe[i]) return;
@@ -211,7 +225,7 @@ function displayReport(card) {
 }
 function loadHTML(html, filename, source, scripts = false) {
   if (new Blob([html]).size > 2 * 1024 * 1024) { toast('HTML은 최대 2MB까지 열 수 있습니다.'); return false; }
-  state.html = html; state.url = null; state.scripts = scripts; state.snapshot = false; state.dpr = null; state.colorScheme = 'light'; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
+  previews.clear(); state.html = html; state.url = null; state.scripts = scripts; state.snapshot = false; state.dpr = null; state.colorScheme = 'light'; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
   codeDraft = null; urlDraft = null;
   toast(`${filename} 미리보기를 적용했습니다.`, 'success'); return true;
 }
@@ -231,6 +245,7 @@ $('apply-url').addEventListener('click', () => {
   catch (error) { toast(error.message, 'error', $('url-input')); return; }
   codeDraft = null; urlDraft = null;
   state.scripts = $('url-scripts').checked;
+  previews.clear();
   state.snapshot = false; state.dpr = null; state.colorScheme = 'light';
   $('filename').textContent = new URL(state.url).hostname; $('source-state').textContent = 'URL 스냅샷'; $('url-dialog').close(); render();
 });
@@ -238,7 +253,7 @@ $('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.pre
 $('apply-code').addEventListener('click', () => { if (!$('code').value.trim()) return toast('HTML 코드를 입력해 주세요.', 'error', $('code')); if (loadHTML($('code').value, 'pasted-content.html', '붙여넣은 코드', $('code-scripts').checked)) $('paste-dialog').close(); else { $('code').focus(); $('code').scrollIntoView({ block: 'nearest' }); } });
 document.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); $('canvas').classList.add('dragover'); } });
 document.addEventListener('dragleave', e => { if (!e.relatedTarget) $('canvas').classList.remove('dragover'); });
-document.addEventListener('drop', e => { e.preventDefault(); $('canvas').classList.remove('dragover'); openFile(e.dataTransfer.files[0]); });
+document.addEventListener('drop', e => { if (!e.dataTransfer.files.length) return; e.preventDefault(); $('canvas').classList.remove('dragover'); openFile(e.dataTransfer.files[0]); });
 $('device').addEventListener('change', () => { state.selections[state.active] = $('device').value; state.dpr = null; render(); });
 for (const id of ['width', 'height']) $(id).addEventListener('change', () => {
   const width = $('width').value, height = $('height').value;
@@ -248,7 +263,7 @@ for (const id of ['width', 'height']) $(id).addEventListener('change', () => {
 });
 $('rotate').addEventListener('click', () => { state.landscape = !state.landscape; render(); });
 $('scale').addEventListener('change', scaleCards);
-$('reload').addEventListener('click', render);
+$('reload').addEventListener('click', () => { previews.clear(); render(); });
 $('safe').addEventListener('change', scheduleScan);
 $('inspect').addEventListener('change', () => { $('panel').hidden = !$('inspect').checked; if (!$('inspect').checked) { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); } scaleCards(); });
 $('min-font').addEventListener('change', () => { const n = Number($('min-font').value); if (!Number.isFinite(n) || n < 6 || n > 32) { $('min-font').value = 12; toast('최소 글자 기준은 6–32px입니다.'); } scheduleScan(); });

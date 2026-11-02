@@ -72,8 +72,9 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
     });
     await context.routeWebSocket('**/*', socket => { blockedRequests++; socket.close(); });
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 6000 });
-    // Allow script-started GETs to settle without letting polling sites wait indefinitely.
-    if (config.url && config.scripts) await page.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {});
+    // Wait for active GETs, without an extra quiet period for polling sites.
+    const settleUntil = Date.now() + 3000;
+    while (config.url && config.scripts && activeFetches && Date.now() < settleUntil) await new Promise(resolve => setTimeout(resolve, 25));
     await page.evaluate(() => Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 500))]));
     await page.waitForTimeout(200);
     const runtime = await page.evaluate(() => ({
@@ -85,12 +86,13 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
     const safeRatio = runtime.layoutWidth / p.width;
     const safe = config.safeArea ? p.safe.map(value => value * safeRatio) : [0, 0, 0, 0];
     const report = await page.evaluate(inspectDocument, { minFont: config.minFont, safe, layoutViewport: true });
-    const screenshot = await page.screenshot({ type: 'png', scale: 'css', animations: 'disabled', timeout: 5000 });
+    const screenshot = await page.screenshot({ type: 'png', scale: 'css', fullPage: true, animations: 'disabled', timeout: 5000 });
     return {
       engine: 'Chromium', browserVersion: browser.version(), referenceDevice: referenceName,
       profile: p, settings: { dpr: config.dpr, scripts: config.scripts, colorScheme: config.colorScheme, minFont: config.minFont, safeArea: config.safeArea },
       runtime, report, errors, blockedRequests, remoteRequests, remoteBytes, source: config.url ? { type: 'url', url: config.url, finalUrl: page.url() } : { type: 'html' }, durationMs: Date.now() - started,
       image: `data:image/png;base64,${screenshot.toString('base64')}`,
+      imageSize: { width: screenshot.readUInt32BE(16), height: screenshot.readUInt32BE(20) },
       capturedAt: new Date().toISOString(), note: 'Chromium mobile context snapshot. Safe Area / Fold env variables are not emulated.'
     };
   };

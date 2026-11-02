@@ -1,5 +1,9 @@
 // Playwright device screen (or viewport when screen is absent), in CSS px. Insets remain visual references.
 export const profiles = [
+  { id: 'iphone-17', group: 'Apple', name: 'iPhone 17', referenceDevice: 'iPhone 17', width: 402, height: 874, dpr: 3, safe: [0, 0, 0, 0] },
+  { id: 'iphone-17-pro', group: 'Apple', name: 'iPhone 17 Pro', referenceDevice: 'iPhone 17 Pro', width: 402, height: 874, dpr: 3, safe: [0, 0, 0, 0] },
+  { id: 'iphone-17-pro-max', group: 'Apple', name: 'iPhone 17 Pro Max', referenceDevice: 'iPhone 17 Pro Max', width: 440, height: 956, dpr: 3, safe: [0, 0, 0, 0] },
+  { id: 'iphone-air', group: 'Apple', name: 'iPhone Air', referenceDevice: 'iPhone Air', width: 420, height: 912, dpr: 3, safe: [0, 0, 0, 0] },
   { id: 'iphone', group: 'Apple', name: 'iPhone 13', referenceDevice: 'iPhone 13', width: 390, height: 844, dpr: 3, cutout: 'notch', safe: [47, 0, 34, 0] },
   { id: 'iphone-large', group: 'Apple', name: 'iPhone 15 Pro Max', referenceDevice: 'iPhone 15 Pro Max', width: 430, height: 932, dpr: 3, cutout: 'island', safe: [59, 0, 34, 0] },
   { id: 'iphone-notch', group: 'Apple', name: 'iPhone X', referenceDevice: 'iPhone X', width: 375, height: 812, dpr: 3, cutout: 'notch', safe: [44, 0, 34, 0] },
@@ -7,9 +11,15 @@ export const profiles = [
   { id: 'iphone-se-3', group: 'Apple', name: 'iPhone SE (3rd gen)', referenceDevice: 'iPhone SE (3rd gen)', width: 375, height: 667, dpr: 2, safe: [0, 0, 0, 0] },
   { id: 'galaxy', group: 'Samsung', name: 'Galaxy S24', referenceDevice: 'Galaxy S24', width: 360, height: 780, dpr: 3, cutout: 'hole', safe: [28, 0, 24, 0] },
   { id: 'galaxy-a55', group: 'Samsung', name: 'Galaxy A55', referenceDevice: 'Galaxy A55', width: 480, height: 1040, dpr: 2.25, cutout: 'hole', safe: [28, 0, 24, 0] },
+  { id: 'fold-7', group: 'Samsung Fold / Flip', name: 'Galaxy Z Fold 7', referenceDevice: 'Galaxy Z Fold 7', width: 984, height: 1092, dpr: 2, safe: [0, 0, 0, 0] },
+  { id: 'fold-7-cover', group: 'Samsung Fold / Flip', name: 'Galaxy Z Fold 7 Cover', referenceDevice: 'Galaxy Z Fold 7 Cover', width: 360, height: 840, dpr: 3, safe: [0, 0, 0, 0] },
+  { id: 'flip-7', group: 'Samsung Fold / Flip', name: 'Galaxy Z Flip 7', referenceDevice: 'Galaxy Z Flip 7', width: 360, height: 840, dpr: 3, safe: [0, 0, 0, 0] },
   { id: 'fold', group: 'Samsung Fold / Flip', name: 'Galaxy Z Fold 6', referenceDevice: 'Galaxy Z Fold 6', width: 928, height: 1080, dpr: 2, hinge: 'vertical', safe: [24, 0, 24, 0] },
   { id: 'fold-cover', group: 'Samsung Fold / Flip', name: 'Galaxy Z Fold 6 Cover', referenceDevice: 'Galaxy Z Fold 6 Cover', width: 484, height: 1188, dpr: 2, cutout: 'hole', safe: [28, 0, 24, 0] },
   { id: 'flip', group: 'Samsung Fold / Flip', name: 'Galaxy Z Flip 6', referenceDevice: 'Galaxy Z Flip 6', width: 360, height: 880, dpr: 3, cutout: 'hole', hinge: 'horizontal', safe: [28, 0, 24, 0] },
+  { id: 'pixel-10', group: 'Google', name: 'Pixel 10', referenceDevice: 'Pixel 10', width: 360, height: 808, dpr: 3, safe: [0, 0, 0, 0] },
+  { id: 'pixel-10-pro', group: 'Google', name: 'Pixel 10 Pro', referenceDevice: 'Pixel 10 Pro', width: 427, height: 952, dpr: 3, safe: [0, 0, 0, 0] },
+  { id: 'pixel-10-pro-xl', group: 'Google', name: 'Pixel 10 Pro XL', referenceDevice: 'Pixel 10 Pro XL', width: 448, height: 997, dpr: 3, safe: [0, 0, 0, 0] },
   { id: 'pixel-7', group: 'Google', name: 'Pixel 7', referenceDevice: 'Pixel 7', width: 412, height: 915, dpr: 2.625, cutout: 'hole', safe: [28, 0, 24, 0] },
   ...[320, 360, 375, 390, 412, 430].map(width => ({ id: `generic-${width}`, group: 'Generic', name: `${width}px`, width, height: 844, dpr: 1, safe: [0, 0, 0, 0] })),
   { id: 'custom', group: 'Custom', name: '직접 입력', width: 390, height: 844, dpr: 1, safe: [0, 0, 0, 0] }

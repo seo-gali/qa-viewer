@@ -28,7 +28,7 @@
   <dialog id="url-dialog"><form method="dialog" class="dialog-heading"><h2>URL 열기</h2><button aria-label="URL 입력 닫기">✕</button></form><label for="url-input">공개 HTTPS URL</label><input id="url-input" class="url-input" type="url" aria-describedby="url-help"><label class="script-option"><input id="url-scripts" type="checkbox">JavaScript 실행</label><details class="support-scope"><summary>지원 범위</summary><p id="url-help">공개 HTTPS GET으로 읽은 Chromium 스냅샷. JavaScript로 화면을 만드는 사이트는 실행 선택 필요. 로그인·전송·사설망·IPv6 전용 주소 미지원. 스냅샷 안의 버튼·링크 조작 불가.</p></details><div class="dialog-footer"><button id="apply-url" class="primary">URL 열기</button></div></dialog>
   <dialog id="emulation-dialog"><form method="dialog" class="dialog-heading"><h2>화면 설정</h2><button aria-label="화면 설정 닫기">✕</button></form>
     <div class="emulation-settings"><label>DPR <input id="emulation-dpr" type="number" inputmode="decimal" min="1" max="4" step="any" value="3"></label><label>테마 <select id="emulation-color"><option value="light">밝게</option><option value="dark">어둡게</option></select></label><button id="run-emulation" class="primary">적용</button></div>
-    <p class="support-scope">적용하면 본 화면에 정적 이미지를 표시합니다. 스크롤·버튼 조작은 지원하지 않습니다.</p>
+    <p class="support-scope">적용하면 페이지 전체를 정적 이미지로 표시합니다. 휠·드래그로 이동할 수 있으며 버튼·링크 클릭은 지원하지 않습니다.</p>
   </dialog>
   <script type="module" src="app.js"></script>
 </body></html>

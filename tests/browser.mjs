@@ -45,7 +45,7 @@ try {
   assert.equal((await metrics()).height, 390);
   await page.click('#rotate');
   await page.selectOption('#device', 'fold'); await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 928);
-  assert.equal(await page.locator('.hinge.vertical').count(), 1);
+  assert.equal(await page.locator('.hinge.vertical').count(), 0);
   await page.check('#safe'); await page.waitForTimeout(200); assert.equal(await page.locator('.safe-top').count(), 1);
   await page.fill('#width', '412'); await page.locator('#width').press('Tab');
   await page.waitForFunction(() => document.querySelector('iframe').contentWindow.innerWidth === 412);

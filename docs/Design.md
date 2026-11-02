@@ -23,6 +23,8 @@
 ## Phase 2
 같은 원본을 2–4개 독립 iframe에 전달한다. 각 카드에서 프로필을 바꾸고 활성 검사 카드를 선택한다. 공통 방향·Safe Area·폰트 임계값을 적용한다. Fit 배율은 비교 행 전체가 작업 공간에 들어오는 최소 배율로 통일한다. 100% 모드는 작업 공간 스크롤을 사용한다. 결과와 overlay는 카드별 DOM에 연결하며 리로드·기기 변경 후 오래된 결과를 버린다.
 
+단일 기기의 자동 맞춤은 등록된 모델들의 최대 CSS 크기를 기준으로 공통 배율을 사용한다. 모델을 바꿀 때 높이가 매번 같아지던 동작을 제거했다. 계산에는 canvas의 offset 크기를 사용해 임시 스크롤바가 배율에 영향을 주지 않도록 했다. 노치·접힘선 참고 그림은 Safe Area를 선택한 경우에만 표시한다.
+
 ## Phase 3
 로컬 API가 Playwright Chromium의 새 mobile context를 생성한다. viewport, screen, deviceScaleFactor, isMobile, hasTouch, userAgent, colorScheme를 명시한다. 실제 모바일 meta viewport 처리는 원본을 top-level 문서로 렌더링해서 검증한다. 원본 viewport meta와 CSS는 보존한다. 스크린샷과 실제 innerWidth / innerHeight / DPR / touch / UA 및 동일 Inspector 결과를 반환한다. 스크린샷은 정적 결과이며 스트리밍·원격 조작 브라우저가 아니다.
 
@@ -37,14 +39,18 @@
 
 기기 목록은 설치된 Playwright의 구체적인 모델을 사용한다. CSS 크기는 screen이 있으면 screen, 없으면 viewport를 사용하며 DPR·UA도 해당 모델을 참조한다. 단위 테스트에서 정의 일치를 검사한다. 주소창·OS·실제 Safari·물리 픽셀 재현을 뜻하지 않는다. 임의 너비 목록은 화면에서 제거하되 기존 Generic API 프로필은 유지한다. 직접 입력은 계속 지원한다. Safe Area·cutout·hinge는 참고 시각화다.
 
-JavaScript를 선택한 URL은 DOMContentLoaded 후 네트워크 유휴를 최대 3초 기다린다. 주기적 요청 사이트에서는 제한 후 촬영하며 완전 로딩을 보장하지 않는다. 2026-10-27 실주소 검사에서 hourboard·ktwiz의 화면 표시와 데이터 로딩을 확인했다. ktwiz의 POST 1건은 정책상 차단했고 입력 fragment는 유지했으나 해당 사이트 HTML에 boardSec 대상 ID가 없었다. 앱이나 원격 사이트에 임의 ID를 추가하지 않았다.
+JavaScript를 선택한 URL은 DOMContentLoaded 후 진행 중인 GET 완료를 최대 3초 기다린다. 별도 네트워크 유휴 시간은 기다리지 않으며 완전 로딩을 보장하지 않는다. 2026-10-27 실주소 검사에서 hourboard·ktwiz의 화면 표시와 데이터 로딩을 확인했다. ktwiz의 POST 1건은 정책상 차단했고 입력 fragment는 유지했으나 해당 사이트 HTML에 boardSec 대상 ID가 없었다. 앱이나 원격 사이트에 임의 ID를 추가하지 않았다.
+
+페이지 전체 PNG와 실제 이미지 크기를 반환하며 선택한 기기의 viewport·원본 CSS·meta는 유지한다. 클라이언트는 선택한 기기 크기의 스크롤 영역 안에 이미지를 원래 픽셀 크기로 배치한다. 휠·키보드와 포인터 드래그로 이동하고 원격 버튼 클릭은 실행하지 않는다. 원본 iframe의 스크롤은 기존 브라우저 동작을 유지한다. 파일이 없는 이미지·텍스트 drop은 업로드로 처리하지 않는다.
+
+최근 완료 결과 8개를 현재 콘텐츠의 메모리 Map에 보관한다. 키는 기기·방향·DPR·테마·검수 설정이며 원본 변경 시 모두 폐기한다. 새로 렌더링 요청도 결과를 폐기하고 실제 페이지를 다시 읽는다. 별도 저장소·DNS 캐시·원격 인증 전달·권한 변경은 추가하지 않았다.
 
 public-url.js는 자격 증명·비표준 포트·사설 및 예약 IP·IPv6·HTTPS 다운그레이드를 거부한다. public-resource.mjs는 각 초기 요청·redirect·리소스에서 공개 IPv4 DNS 결과를 확인하고 실제 소켓 주소를 고정한다. 원격 Cookie/Authorization은 전달하지 않는다. 모든 요청은 GET만 허용하며 동시 원격 연결 4개, 최대 60개 요청, 리소스별 4MB / 합계 32MB를 제한한다. 인증·POST API·서비스 워커·팝업·중첩 프레임·다운로드는 지원하지 않는다. 일부 SPA 및 봇 차단 사이트는 완전 렌더링이 불가능하다.
 
 로컬 API는 127.0.0.1 바인딩, 명시적 Host, 동일 Origin + JSON, 메모리 세션 쿠키, 일정 시간 비교 인증, 분당 20회, 동시 검사 1개, 총 20초 제한을 사용한다. HTML 2MB / JSON 3MB, 설정 필드 allowlist와 값 범위 검증을 적용한다. 응답은 사용자 코드·내부 stack trace·로컬 경로를 노출하지 않는 오류 코드로 정리한다. 사용자 보고 텍스트는 textContent로 출력한다. CSP·nosniff·DENY·Permissions-Policy·CORP·COOP·Referrer-Policy를 사용한다. 쿠키는 HttpOnly / SameSite=Strict이며 loopback HTTP 특성상 Secure / HSTS는 적용하지 않는다. DB·영구 저장·API 키·계정·비밀번호가 없으므로 RLS·암호화 저장·비밀번호 해싱·로그인 봇 보호·SQL 파라미터화는 적용 대상이 아니다.
 
 ## UI 마감과 접근성
-320px부터 홈·비교·대화상자·404의 바깥 가로 넘침을 방지한다. 비교 콘텐츠와 100% 화면의 작업 공간 스크롤은 유지한다. 별도 상단 헤더와 더보기를 제거하고 로고를 HTML 열기 왼쪽에 배치한다. 입력·기기·설정은 모바일에서도 줄바꿈으로 표시한다. 입력에 label, 결과 및 오류에 status / alert를 제공한다. 페이지 제목·메타 설명·SVG 파비콘·홈 로고·푸터 링크·자동 저작권 연도·404 복귀 링크를 제공한다. 샘플 링크는 실제 내부 ID를 가리키며 CTA는 작동하는 anchor다. PNG는 CSS pixel 크기로 저장하고 브라우저 Canvas WebP 85% 압축 저장을 추가한다.
+320px부터 홈·비교·대화상자·404의 바깥 가로 넘침을 방지한다. 비교 콘텐츠와 100% 화면의 작업 공간 스크롤은 유지한다. 별도 상단 헤더와 더보기를 제거하고 로고를 HTML 열기 왼쪽에 배치한다. 도구 모음은 폭에 따라 글자·간격·입력 크기를 줄이고 한 줄 유지 및 가로 이동을 지원한다. 숨김 label의 위치 기준도 도구 모음 안에 유지한다. 입력에 label, 결과 및 오류에 status / alert를 제공한다. 페이지 제목·메타 설명·SVG 파비콘·홈 로고·푸터 링크·자동 저작권 연도·404 복귀 링크를 제공한다. 샘플 링크는 실제 내부 ID를 가리키며 CTA는 작동하는 anchor다. PNG는 전체 페이지의 CSS pixel 크기로 저장하고 브라우저 Canvas WebP 85% 압축 저장을 추가한다.
 
 ## 완료 기록
 - Phase 1: 완료. npm run check, npm test (4개), npm run test:browser 통과. CSS viewport / Fit 불변·입력·검사·격리를 Chromium에서 확인. artifacts/phase-1.png 생성.
