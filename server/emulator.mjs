@@ -95,20 +95,24 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
     const screenshot = await page.screenshot({ type: 'png', scale: 'css', fullPage: true, animations: 'disabled', timeout: 5000 });
     const interactive = await page.evaluate(() => {
       const scale = visualViewport?.scale ?? 1;
-      return [...document.querySelectorAll('a[href],button,[role="button"],summary,input[type="button"],input[type="submit"],input[type="reset"]')].flatMap(element => {
+      const targets = [];
+      for (const element of document.querySelectorAll('a[href],button,[role="button"],summary,input[type="button"],input[type="submit"],input[type="reset"]')) {
         const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
-        if (!rect.width || !rect.height || style.visibility === 'hidden' || element.disabled || element.getAttribute('aria-disabled') === 'true') return [];
+        if (!rect.width || !rect.height || style.visibility === 'hidden' || element.disabled || element.getAttribute('aria-disabled') === 'true') continue;
         const path = [];
         for (let node = element; node; node = node.parentElement) {
-          if (node.id && document.querySelectorAll(`#${CSS.escape(node.id)}`).length === 1) { path.unshift(`#${CSS.escape(node.id)}`); break; }
-          const siblings = [...(node.parentElement?.children ?? [node])].filter(sibling => sibling.localName === node.localName);
-          path.unshift(`${node.localName}:nth-of-type(${siblings.indexOf(node) + 1})`);
+          if (node.id && document.querySelectorAll(`#${CSS.escape(node.id)}`).length === 1) { path.push(`#${CSS.escape(node.id)}`); break; }
+          let ordinal = 1;
+          for (let sibling = node.previousElementSibling; sibling; sibling = sibling.previousElementSibling) if (sibling.localName === node.localName) ordinal++;
+          path.push(`${node.localName}:nth-of-type(${ordinal})`);
         }
-        const selector = path.join(' > ');
-        if (selector.length > 2048) return [];
+        const selector = path.reverse().join(' > ');
+        if (selector.length > 2048) continue;
         const buttonValue = element.matches('input[type="button"],input[type="submit"],input[type="reset"]') ? element.value : '';
-        return [{ selector, href: element instanceof HTMLAnchorElement ? element.href : null, label: (element.getAttribute('aria-label') || element.textContent || buttonValue || element.getAttribute('title') || element.getAttribute('href') || '버튼').trim().slice(0, 120), x: (rect.left + scrollX) * scale, y: (rect.top + scrollY) * scale, width: rect.width * scale, height: rect.height * scale }];
-      }).slice(0, 500);
+        targets.push({ selector, href: element instanceof HTMLAnchorElement ? element.href : null, label: (element.getAttribute('aria-label') || element.textContent || buttonValue || element.getAttribute('title') || element.getAttribute('href') || '버튼').trim().slice(0, 120), x: (rect.left + scrollX) * scale, y: (rect.top + scrollY) * scale, width: rect.width * scale, height: rect.height * scale });
+        if (targets.length === 500) break;
+      }
+      return targets;
     });
     return {
       engine: 'Chromium', browserVersion: browser.version(), referenceDevice: referenceName,

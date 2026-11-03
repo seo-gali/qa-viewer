@@ -11,7 +11,6 @@ let toastTimer, scanTimer;
 let currentScale = 1, reviewType = 'layout';
 let codeDraft = null, urlDraft = null;
 let previewJob = Promise.resolve();
-const previews = new Map();
 const snapshotMode = () => Boolean(state.url || state.scripts || state.snapshot);
 function emulationInput(index = state.active) {
   return { ...(state.url ? { url: state.urls[index] ?? state.url } : { html: state.html }), clicks: state.clicks[index] ?? [], scripts: state.scripts, profile: state.selections[index], custom: state.custom[index], landscape: state.landscape, dpr: state.dpr ?? resolveProfile(state.selections[index], state.custom[index], state.landscape).dpr, colorScheme: state.colorScheme, minFont: Number($('min-font').value), safeArea: $('safe').checked };
@@ -71,11 +70,8 @@ function render() {
     for (const [index, card] of cards.entries()) {
       if (generation !== state.generation || !snapshot) break;
       try {
-        const { html, ...settings } = inputs[index];
-        const key = JSON.stringify(settings);
-        const data = previews.get(key) ?? await capture(inputs[index]);
+        const data = await capture(inputs[index]);
         if (generation !== state.generation) break;
-        if (!previews.has(key)) { if (previews.size >= 8) previews.delete(previews.keys().next().value); previews.set(key, data); }
         card.image.width = data.imageSize.width; card.image.height = data.imageSize.height;
         card.page.style.width = `${data.imageSize.width}px`; card.page.style.height = `${data.imageSize.height}px`;
         if (data.source.type === 'url' && data.source.finalUrl.split('#')[0] !== inputs[index].url.split('#')[0]) { state.urls[index] = validatePublicUrl(data.source.finalUrl); state.clicks[index] = []; }
@@ -256,13 +252,13 @@ function displayReport(card) {
   });
   if (!r.issues.length) { const empty = document.createElement('p'); empty.className = 'empty-issues'; empty.textContent = '✓ 현재 기준에서 발견된 경고가 없습니다.'; $('issues').append(empty); }
   $('breakpoints').replaceChildren();
-  for (const condition of r.breakpoints) { const code = document.createElement('code'); const matches = card.result ? r.mediaQueries.find(item => item.query === condition)?.matches : card.iframe.contentWindow.matchMedia(condition).matches; code.textContent = `${matches ? '●' : '○'} ${condition}`; $('breakpoints').append(code); }
+  for (const { query, matches } of r.mediaQueries) { const code = document.createElement('code'); code.textContent = `${matches ? '●' : '○'} ${query}`; $('breakpoints').append(code); }
   if (!r.breakpoints.length) $('breakpoints').textContent = '검출된 media query 없음';
   $('status').textContent = `${card.p.width} × ${card.p.height} CSS px · ${card.p.width > card.p.height ? '가로' : '세로'} · ${card.p.source ? '발표 비율 기반 검수 기준 · ' : ''}${r.horizontalOverflow ? '가로 넘침 발견' : '가로 넘침 없음'}`;
 }
 function loadHTML(html, filename, source, scripts = false) {
   if (new Blob([html]).size > 2 * 1024 * 1024) { toast('HTML은 최대 2MB까지 열 수 있습니다.'); return false; }
-  previews.clear(); state.html = html; state.url = null; state.urls = []; state.clicks = []; state.scripts = scripts; state.snapshot = false; state.dpr = null; state.colorScheme = 'light'; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
+  state.html = html; state.url = null; state.urls = []; state.clicks = []; state.scripts = scripts; state.snapshot = false; state.dpr = null; state.colorScheme = 'light'; state.filename = filename; $('filename').textContent = filename; $('source-state').textContent = source; render();
   codeDraft = null; urlDraft = null;
   toast(`${filename} 미리보기를 적용했습니다.`, 'success'); return true;
 }
@@ -282,7 +278,6 @@ $('apply-url').addEventListener('click', () => {
   catch (error) { toast(error.message, 'error', $('url-input')); return; }
   codeDraft = null; urlDraft = null;
   state.scripts = $('url-scripts').checked;
-  previews.clear();
   state.urls = []; state.clicks = [];
   state.snapshot = false; state.dpr = null; state.colorScheme = 'light';
   $('filename').textContent = new URL(state.url).hostname; $('source-state').textContent = 'URL 스냅샷'; $('url-dialog').close(); render();
@@ -305,7 +300,7 @@ for (const [id, step] of [['zoom-in', .1], ['zoom-out', -.1]]) $(id).addEventLis
   const scale = Math.max(.1, Math.min(2, Math.round((currentScale + step) * 100) / 100));
   $('custom-scale').dataset.scale = String(scale); $('custom-scale').textContent = `${Math.round(scale * 100)}%`; $('custom-scale').hidden = false; $('scale').value = 'custom'; scaleCards();
 });
-$('reload').addEventListener('click', () => { previews.clear(); state.clicks = []; render(); });
+$('reload').addEventListener('click', () => { state.clicks = []; render(); });
 $('safe').addEventListener('change', scheduleScan);
 $('inspect').addEventListener('change', () => { $('panel').hidden = $('panel-resizer').hidden = !$('inspect').checked; if (!$('inspect').checked) { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); } scaleCards(); });
 for (const type of ['layout', 'seo']) $(`review-${type}`).addEventListener('click', () => { reviewType = type; for (const name of ['layout', 'seo']) $(`review-${name}`).setAttribute('aria-pressed', String(name === type)); displayReport(state.cards[state.active]); });

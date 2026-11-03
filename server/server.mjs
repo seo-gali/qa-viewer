@@ -5,12 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { validateEmulation } from './emulation-config.mjs';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 
-const files = new Map([
+const files = [
   ['/', ['index.html', 'text/html']],
   ...['app.js', 'profiles.js', 'security.js', 'sample.js', 'inspector.js', 'emulation-ui.js', 'public-url.js'].map(name => [`/${name}`, [name, 'text/javascript']]),
   ['/styles.css', ['styles.css', 'text/css']],
   ['/favicon.svg', ['favicon.svg', 'image/svg+xml']]
-]);
+];
 async function readBody(req) {
   return new Promise((resolve, reject) => {
     let size = 0, chunks = [], finished = false;
@@ -85,7 +85,7 @@ export function createServer({ fetchResource } = {}) {
       return;
     }
     if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405).end('Method not allowed'); return; }
-    const file = files.get(path);
+    const file = files.find(([pathname]) => pathname === path)?.[1];
     if (!file) {
       try {
         const year = String(new Date().getFullYear());

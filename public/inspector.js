@@ -1,57 +1,62 @@
-// Serializable: the same function is evaluated in a Playwright page in Phase 3.
+// Serializable: used by both the static iframe and isolated Chromium.
 export function inspectDocument(doc, options = {}) {
-  // Playwright serializes this function; passing options runs it in the current page.
   if (!doc?.defaultView) { options = doc ?? {}; doc = document; }
   const win = doc.defaultView;
   const width = options.layoutViewport ? doc.documentElement.clientWidth : win.innerWidth;
   const height = options.layoutViewport ? doc.documentElement.clientHeight : win.innerHeight;
   const threshold = options.minFont ?? 12;
   const safe = options.safe ?? [0, 0, 0, 0];
-  const issues = [], elements = [];
-  const seen = new Set();
+  const maxIssues = 250, maxElements = 10000;
+  const all = doc.body.querySelectorAll('*'), count = Math.min(all.length, maxElements);
+  const lefts = new Float64Array(count), tops = new Float64Array(count), widths = new Float64Array(count), heights = new Float64Array(count);
+  // 14 bits hold parent index + 1; the top two hold clipping flags (at most 10,000 elements).
+  const links = new Uint16Array(count), parentMask = 0x3fff, clipX = 0x4000, clipY = 0x8000;
+  const clipped = new Uint32Array(Math.ceil(count / 32)), issues = [];
   const scrollWidth = Math.max(doc.documentElement.scrollWidth, doc.body.scrollWidth);
   const horizontalOverflow = scrollWidth > width + 1;
-  const maxIssues = 250, maxElements = 10000;
-  let truncated = false;
+  let truncated = all.length > maxElements, parent = -1;
   const label = el => (el.id ? `#${el.id}` : el.localName + [...el.classList].slice(0, 2).map(c => `.${c}`).join('')).slice(0, 160);
-  const push = (type, el, message, rect) => {
-    const index = elements.indexOf(el), key = `${type}:${index}`;
-    if (seen.has(key)) return;
-    seen.add(key);
+  const push = (type, index, message) => {
+    if (type === 'clipped') {
+      const word = index >>> 5, bit = 1 << (index & 31);
+      if (clipped[word] & bit) return;
+      clipped[word] |= bit;
+    }
     if (issues.length >= maxIssues) { truncated = true; return; }
-    const r = rect ?? el.getBoundingClientRect();
-    issues.push({ type, selector: label(el), index, message: message.slice(0, 500), rect: { x: r.x, y: r.y, width: r.width, height: r.height } });
+    issues.push({ type, selector: label(all[index]), index, message: message.slice(0, 500), rect: { x: lefts[index], y: tops[index], width: widths[index], height: heights[index] } });
   };
-  const all = [...doc.body.querySelectorAll('*')];
-  if (all.length > maxElements) truncated = true;
-  for (const el of all.slice(0, maxElements)) {
+  for (let index = 0; index < count; index++) {
+    const el = all[index];
+    while (parent >= 0 && all[parent] !== el.parentElement) parent = (links[parent] & parentMask) - 1;
     const r = el.getBoundingClientRect(), css = win.getComputedStyle(el);
+    lefts[index] = r.left; tops[index] = r.top; widths[index] = r.width; heights[index] = r.height;
+    links[index] = (parent + 1) | (css.overflowX === 'hidden' || css.overflowX === 'clip' ? clipX : 0) | (css.overflowY === 'hidden' || css.overflowY === 'clip' ? clipY : 0);
+    parent = index;
     if (!r.width || !r.height || css.visibility === 'hidden' || css.display === 'none' || Number(css.opacity) === 0) continue;
-    elements.push(el);
     if (el.tagName === 'A') {
       const href = el.getAttribute('href');
       if (href?.startsWith('#') && href.length > 1) {
         let target;
         try { target = decodeURIComponent(href.slice(1)); } catch { target = null; }
-        if (!target || (!doc.getElementById(target) && ![...doc.getElementsByName(target)].some(node => node.tagName === 'A'))) push('link', el, `링크 대상 ${href}를 찾을 수 없습니다.`, r);
+        if (!target || (!doc.getElementById(target) && ![...doc.getElementsByName(target)].some(node => node.tagName === 'A'))) push('link', index, `링크 대상 ${href}를 찾을 수 없습니다.`);
       }
     }
-    if (el.tagName === 'IMG' && el.complete && el.getAttribute('src') && !el.naturalWidth) push('image', el, '이미지를 불러오지 못했습니다. 주소 또는 외부 리소스 차단 여부를 확인하세요.', r);
-    if (horizontalOverflow && (r.right > width + 1 || r.left < -1)) push('overflow', el, `가로 범위 ${Math.round(r.left)}–${Math.round(r.right)}px · viewport ${width}px`, r);
-    if (css.position === 'fixed' && (r.top < -1 || r.bottom > height + 1)) push('fixed', el, 'fixed 요소가 세로 viewport 밖으로 나갑니다.', r);
-    const directText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
-    if (directText && parseFloat(css.fontSize) < threshold) push('text', el, `${css.fontSize} · 검수 기준 ${threshold}px 미만`, r);
+    if (el.tagName === 'IMG' && el.complete && el.getAttribute('src') && !el.naturalWidth) push('image', index, '이미지를 불러오지 못했습니다. 주소 또는 외부 리소스 차단 여부를 확인하세요.');
+    if (horizontalOverflow && (r.right > width + 1 || r.left < -1)) push('overflow', index, `가로 범위 ${Math.round(r.left)}–${Math.round(r.right)}px · viewport ${width}px`);
+    if (css.position === 'fixed' && (r.top < -1 || r.bottom > height + 1)) push('fixed', index, 'fixed 요소가 세로 viewport 밖으로 나갑니다.');
+    let directText = false;
+    for (const child of el.childNodes) if (child.nodeType === 3 && child.textContent.trim()) { directText = true; break; }
+    if (directText && parseFloat(css.fontSize) < threshold) push('text', index, `${css.fontSize} · 검수 기준 ${threshold}px 미만`);
     const onScreen = r.bottom > 0 && r.top < height && r.right > 0 && r.left < width;
     if (onScreen && (directText || /^(IMG|BUTTON|INPUT|A|SELECT|TEXTAREA)$/.test(el.tagName))) {
-      if ((safe[0] && r.top < safe[0]) || (safe[1] && r.right > width - safe[1]) || (safe[2] && r.bottom > height - safe[2]) || (safe[3] && r.left < safe[3])) push('safe', el, '참고 Safe Area와 겹칩니다. 실제 env() 값은 변경하지 않습니다.', r);
+      if ((safe[0] && r.top < safe[0]) || (safe[1] && r.right > width - safe[1]) || (safe[2] && r.bottom > height - safe[2]) || (safe[3] && r.left < safe[3])) push('safe', index, '참고 Safe Area와 겹칩니다. 실제 env() 값은 변경하지 않습니다.');
     }
-    let ancestor = el.parentElement;
-    while (ancestor && ancestor !== doc.body) {
-      const ac = win.getComputedStyle(ancestor), ar = ancestor.getBoundingClientRect();
-      const x = ['hidden', 'clip'].includes(ac.overflowX) && (r.left < ar.left - 1 || r.right > ar.right + 1);
-      const y = ['hidden', 'clip'].includes(ac.overflowY) && (r.top < ar.top - 1 || r.bottom > ar.bottom + 1);
-      if ((x || y) && onScreen) { push('clipped', ancestor, `${label(ancestor)} 안의 콘텐츠 잘림 가능성 · 의도한 자르기인지 확인하세요.`, ar); break; }
-      ancestor = ancestor.parentElement;
+    if (!onScreen) continue;
+    for (let ancestor = (links[index] & parentMask) - 1; ancestor >= 0; ancestor = (links[ancestor] & parentMask) - 1) {
+      const flags = links[ancestor];
+      const x = (flags & clipX) && (r.left < lefts[ancestor] - 1 || r.right > lefts[ancestor] + widths[ancestor] + 1);
+      const y = (flags & clipY) && (r.top < tops[ancestor] - 1 || r.bottom > tops[ancestor] + heights[ancestor] + 1);
+      if (x || y) { push('clipped', ancestor, `${label(all[ancestor])} 안의 콘텐츠 잘림 가능성 · 의도한 자르기인지 확인하세요.`); break; }
     }
   }
   const breakpoints = new Set();
@@ -89,7 +94,7 @@ export function inspectDocument(doc, options = {}) {
     metaViewport: doc.querySelector('meta[name="viewport" i]')?.content ?? null,
     scrollWidth, horizontalOverflow, seo,
     issues, breakpoints: [...breakpoints], mediaQueries: [...breakpoints].map(query => ({ query, matches: win.matchMedia(query).matches })), unreadableSheets, truncated,
-    scanned: Math.min(all.length, maxElements)
+    scanned: count
   };
-  return options.includeElements ? { ...result, elements } : result;
+  return options.includeElements ? { ...result, elements: Array.from({ length: count }, (_, index) => all[index]) } : result;
 }
