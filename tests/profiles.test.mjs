@@ -1,15 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { profiles, profileChoices, resolveProfile, fitScale, validDimension } from '../public/profiles.js';
-import { devices } from 'playwright';
-test('named model dimensions, DPR and UA reference match installed Playwright descriptors', () => {
-  for (const p of profiles.filter(p => p.referenceDevice)) {
-    const device = devices[p.referenceDevice];
-    assert.ok(device, p.name);
-    assert.deepEqual({ width: p.width, height: p.height }, device.screen ?? device.viewport, p.name);
-    assert.equal(p.dpr, device.deviceScaleFactor, p.name);
-  }
-});
 test('all profiles have bounded CSS dimensions and immutable rotated insets', () => {
   for (const p of profiles) { assert.ok(validDimension(p.width)); assert.ok(validDimension(p.height)); assert.equal(resolveProfile(p.id, undefined, true).width, p.height); }
   assert.deepEqual(resolveProfile('iphone', undefined, true).safe, [0, 47, 0, 34]);

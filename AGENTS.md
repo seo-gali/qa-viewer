@@ -33,13 +33,13 @@
 ## 렌더링 계약
 - iframe width/height는 선택한 CSS px 크기다. Fit은 바깥 래퍼의 transform만 변경한다. 콘텐츠 zoom, viewport meta 변경, env() 치환을 금지한다.
 - Safe Area / cutout / hinge는 검수용 시각화다. 프로필 수치는 참고용이며 공식 하드웨어 사양으로 주장하지 않는다.
-- 데스크톱 iframe과 모바일 브라우저 컨텍스트의 viewport meta / DPR / touch 차이를 숨기지 않는다.
+- 미리보기는 데스크톱 iframe이다. 별도 UA·DPR·touch·모바일 Safari 재현 기능으로 설명하지 않는다.
 - 작은 글씨는 사용자가 정한 임계값 경고이며 표준 위반으로 판정하지 않는다.
 
 ## 격리 및 데이터
 정적 미리보기는 sandbox="allow-same-origin"만 사용한다. allow-scripts를 함께 추가하지 않는다. CSP로 네트워크·중첩 프레임·폼을 제한한다. 원본 HTML은 메모리에만 보관하고 업로드를 자동 저장하지 않는다.
-Playwright는 로컬 loopback 서버의 새 브라우저 컨텍스트에서 실행한다. HTML 모드의 네트워크와 모든 모드의 다운로드·팝업·서비스 워커를 차단한다. 사용자가 지정한 URL 모드만 공개 HTTPS 리소스 GET을 허용하며, 매 요청의 DNS 검증·공개 IPv4 고정 연결·크기/개수/시간 제한을 유지한다. Cookie·Authorization을 원격으로 전달하지 않는다. 서버 파일 제공은 명시적 허용 목록만 사용한다.
-로컬 API는 메모리 세션의 HttpOnly/SameSite=Strict 쿠키와 Host/Origin 검증, 입력 스키마 검증, 분당 20회 제한을 유지한다. 로컬 HTTP 쿠키를 Secure로 오표기하지 않는다. 운영 서비스·다중 사용자 인증으로 주장하지 않는다. 시크릿 검사에서 실제 키 값을 출력하지 않으며, 발견 시 파일명만 보고한다.
+현재 구성은 정적 HTML 전용이며 브라우저 자동화·외부 URL 요청·렌더링 API가 없다. 서버는 loopback·Host 검증과 명시적 정적 파일 허용 목록을 사용한다.
+로컬 정적 서버를 운영 인증으로 주장하지 않는다. 시크릿 검사에서 실제 키 값을 출력하지 않으며 발견 시 파일명만 보고한다.
 
 ## 위임
 독립 작업이고 컨텍스트 절감 이득이 명확할 때만 서브에이전트를 사용한다. 브리핑에는 Goal, Constraints, Verification, Halt를 모두 적고 전체 대화 복사를 피한다.
@@ -48,16 +48,16 @@ Playwright는 로컬 loopback 서버의 새 브라우저 컨텍스트에서 실�
 
 - 검수용 HTML 작성 시 [Effective HTML](https://github.com/plannotator/effective-html)을 참고한다. 구조 탐색은 `html-wireframe`, 상태·입력 흐름은 `html-prototype` 원칙을 사용한다. 기존 앱 코드 수정에 단일 HTML 산출물 규칙을 강제하지 않는다.
 - 예제는 `examples/`에 단일 HTML로 작성하며 CSS·JavaScript를 인라인으로 포함한다. 외부 CDN·API·자동 저장·실제 전송 없이 실제 한국어 문구·의미 있는 label·키보드 조작·오류 복구를 제공한다.
-- 정적 iframe은 스크립트 차단 상태를 유지한다. Chromium 결과는 전체 페이지 이미지이며 버튼·링크 클릭 후 새 격리 컨텍스트에서 동작을 처리해 결과를 갱신한다. 실시간 브라우저·입력값 편집·로그인·폼 전송으로 설명하지 않는다. 클릭 흐름·포커스·상태 전환은 실제 앱에서 확인한다.
+- 정적 iframe의 스크립트 차단을 유지한다. 내부 링크·details 등 기본 HTML 동작과 JavaScript 실행을 구분하며 실제 앱에서 확인한다.
 - [Android Skills](https://github.com/android/skills)는 크기·테마·상태 조합 및 콘텐츠 가림의 검수 관점으로 참고한다. Compose·Gradle·SDK 지침이나 Android dp 수치를 현재 웹 프로젝트에 직접 적용하지 않는다.
 - 디렉토리·사용법·후속 작업 변경 시 README.md·PLAN.md·docs/Design.md의 관련 기록을 맞춘다.
 
 ## 검증과 보고
-변경 영향과 사용자 지시에 맞는 직접 검증을 수행한다. npm run check, npm test, npm run test:browser, npm run test:url, npm run test:secrets는 사용 가능한 명령이며 실제 앱 확인과 모의 검사를 구분한다. 사용자가 모의 환경 검사를 제외하면 실제 앱·실주소로 해당 범위를 확인하고 실행하지 않은 명령을 통과로 기록하지 않는다. 의존성 변경 시 npm audit을 추가한다. 실패를 수정하고 다시 검증한다. 각 Phase 완료 시 README.md / PLAN.md / docs/Design.md의 상태와 검증 기록을 맞추고 로컬 커밋한다. README는 명사형 문체로 유지한다. 완료 보고에는 변경 내용, 실행한 검증, 실제 남은 제약만 적는다.
+변경 영향과 사용자 지시에 맞는 직접 검증을 수행한다. npm run check, npm test, npm run test:secrets를 사용할 수 있으며 실제 앱 확인과 모의 검사를 구분한다. 의존성 변경 시 npm audit을 추가한다. 실패를 수정하고 다시 검증한다. 각 Phase 완료 시 README.md / PLAN.md / docs/Design.md를 맞추고 로컬 커밋한다. README는 명사형 문체를 유지한다. 완료 보고에는 변경 내용·실행한 검증·남은 제약만 적는다.
 
 ## 프로덕션 배포 전 점검
 
-배포를 요청받으면 다음 10개 항목의 적용 여부·검증 결과·남은 제약을 기록한다. 미검증을 통과로 표시하지 않으며 해당하지 않는 항목은 근거를 남긴다. 현재 도구의 loopback·로컬 세션 정책을 운영용 인증으로 간주하지 않는다. 배포·외부 쓰기는 별도 승인 경계를 따른다.
+배포를 요청받으면 다음 10개 항목의 적용 여부·검증 결과·남은 제약을 기록한다. 미검증을 통과로 표시하지 않으며 해당하지 않는 항목은 근거를 남긴다. 현재 도구의 loopback 정적 서버를 운영용 인증으로 간주하지 않는다. 배포·외부 쓰기는 별도 승인 경계를 따른다.
 
 1. 환경 변수·시크릿: 필요한 설정과 제공 경로 확인, 시크릿 값의 열람·출력·커밋·전송 금지, 추적 파일 검사.
 2. 오류 처리: 예외·시간 초과·취소·복구와 사용자 오류 메시지 확인, 내부 경로·stack trace·민감정보 노출 차단.

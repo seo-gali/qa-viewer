@@ -1,4 +1,4 @@
-// Serializable: used by both the static iframe and isolated Chromium.
+// Inspects the static iframe without executing its scripts.
 export function inspectDocument(doc, options = {}) {
   if (!doc?.defaultView) { options = doc ?? {}; doc = document; }
   const win = doc.defaultView;

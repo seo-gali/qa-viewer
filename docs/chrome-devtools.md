@@ -1,22 +1,16 @@
-# 추가 진단 메모
+# 브라우저 확인 기록
 
-기준일: 2026-11-02. 앱 실행 구성과 구분하는 선택적 진단 기록.
+기준일: 2026-11-03.
 
-## 현재 상태
+- 프로젝트 Playwright 의존성·번들 Chromium 실행 경로 제거.
+- 설치된 Chrome 156.0.8078.80으로 실제 로컬 정적 앱 확인.
+- Node.js 기본 WebSocket과 Chrome DevTools Protocol로 비교·확대·SEO·JSON 저장·script 차단 확인.
+- 확인용 Chrome은 --no-sandbox 없이 별도 임시 프로필로 실행하고 종료.
+- 문서 캡처: docs/screenshots/overview.png·seo.png.
+- 확인 코드/로그: Git 제외 artifacts/static-browser-check.mjs·static-browser-check.log.
+- Chrome DevTools MCP를 새로 설치하거나 전역 실행 정책을 바꾼 작업과 구분.
 
-프로젝트 브라우저 의존성은 package.json의 Playwright다. 앱·버튼·링크 확인은 기존 Chromium 및 설치된 Chrome으로 수행했다.
-이 세션에서 Chrome DevTools MCP는 사용하지 않았다. 전역 설치·연결 상태를 확인하거나 설정을 변경하지 않았다.
-이전 문서의 고정 MCP 버전과 전역 설정 예시는 실제 프로젝트 구성이 아니므로 제거했다. 설치 완료·현재 권장 설정으로 해석하지 않는다.
-공식 참고: [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp#readme). 설치·연결은 이번 변경에 포함하지 않는다.
+이전 LCP·CLS·heap·원격 촬영 시간은 이전 구현의 기록이며 현재 성능으로 재사용하지 않음.
+기본 iframe도 브라우저 엔진으로 HTML/CSS를 처리하므로 사용자 브라우저 업데이트 필요.
 
-## 측정 기록의 범위
-
-2026-10-26의 LCP·CLS·heap 단회 측정은 당시 기본 샘플과 UI의 기록이다. 이후 전체 페이지·클릭·기기 목록·도구 모음 변경으로 현재 수치로 재사용하지 않는다.
-당시 원본이 있으면 로컬 Git 제외 경로 artifacts/performance-baseline.json에서 확인할 수 있다. 저장소에 포함된 결과물은 아니다.
-2026-11-02 실제 Chrome의 공개 링크·버튼 결과 갱신은 단회 약 1.7초였다. 네트워크·페이지 상태에 따른 값이며 일반 성능 보장·메모리 누수 판정과 구분한다.
-
-## 미실시 항목
-
-반복 측정·현재 UI LCP/CLS·유지 객체 분석·Lighthouse는 이번 작업에서 수행하지 않았다.
-추가 진단은 현재 실행 방식과 승인 범위 안에서 수행한다. 사용자 업로드·로그인 프로필·환경 변수 값을 진단 자료로 수집하지 않는다.
-[설계](Design.md) · [실제 확인·미완료](../PLAN.md)
+[설계](Design.md) · [작업 상태](../PLAN.md)
