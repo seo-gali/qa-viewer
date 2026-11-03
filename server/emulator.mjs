@@ -20,7 +20,7 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
     browser = await chromium.launch({ timeout: 10000 });
     if (signal?.aborted) throw new Error('검사가 취소되었습니다.');
     const p = config.profile;
-    const referenceName = p.referenceDevice ?? 'Galaxy S24';
+    const referenceName = p.referenceDevice ?? (p.brand === 'Apple' ? 'iPhone 17 Pro Max' : 'Galaxy S24');
     const reference = devices[referenceName];
     const context = await browser.newContext({
       viewport: { width: p.width, height: p.height }, screen: { width: p.width, height: p.height },
@@ -60,6 +60,7 @@ export async function emulate(config, signal, fetchResource = fetchPublicResourc
           resource.headers['content-security-policy'] = [resource.headers['content-security-policy'], sandbox].filter(Boolean).join(', ');
           await route.fulfill(resource);
         } catch (error) {
+          if (jobSignal.aborted) { await route.abort('blockedbyclient').catch(() => {}); return; }
           blockedRequests++;
           if (errors.length < 20) errors.push(`리소스 차단: ${error.message}`);
           await route.abort('blockedbyclient').catch(() => {});

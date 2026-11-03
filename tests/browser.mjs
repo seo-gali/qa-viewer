@@ -17,6 +17,7 @@ async function paste(html) {
 }
 try {
   await page.goto(base);
+  await page.selectOption('#device', 'iphone-17e');
   await page.waitForFunction(() => document.getElementById('checks').children.length > 0);
   assert.equal(await page.locator('iframe').getAttribute('sandbox'), 'allow-same-origin');
   const html = `<!doctype html><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0}#fixture{width:100vw;height:100vh;background:#ddd}@media(max-width:400px){#fixture{background:rgb(255, 0, 0)}}.wide{width:428px}.tiny{font-size:10px}.outside{position:fixed;top:-20px}.clip{overflow:hidden;width:100px;height:30px}.clipped{width:180px;height:60px}.below{margin-top:1500px}</style><main id="fixture"><div class="wide">Overflow</div><span class="tiny">Tiny</span><a class="missing" href="#no-such-id">Missing</a><a class="valid" href="#fixture">Valid</a><img src="data:image/png;base64,broken" width="24" height="24" alt="broken fixture"><div class="outside">Fixed</div><div class="clip"><div class="clipped">Clipped</div></div><p class="below">Normal scroll content</p></main><script>parent.document.body.dataset.escaped='yes';document.querySelector('#fixture').remove();</script>`;
@@ -29,7 +30,7 @@ try {
   assert.deepEqual(before, { width:390, height:844, rect:390, color:'rgb(255, 0, 0)', escaped:null, meta:'width=device-width, initial-scale=1' });
   await page.selectOption('#scale', '0.5'); assert.deepEqual(await metrics(), before);
   await page.selectOption('#scale', '1'); assert.deepEqual(await metrics(), before);
-  assert.ok(await page.getByText('Horizontal overflow', { exact:false }).count());
+  assert.ok(await page.getByText('가로 넘침', { exact:false }).count());
   assert.ok(await page.getByText('작은 텍스트', { exact:false }).count());
   assert.ok(await page.getByText('화면 밖 fixed 요소', { exact:false }).count());
   assert.ok(await page.getByText('콘텐츠 잘림 가능', { exact:false }).count());
@@ -65,11 +66,11 @@ try {
   await paste('<!doctype html><link rel="stylesheet" href="data:text/css,%23fixture%7Bcolor%3Argb(1%2C2%2C3)%7D"><div id="fixture">Data stylesheet</div>');
   assert.equal(await page.evaluate(()=>{const w=document.querySelector('iframe').contentWindow;return w.getComputedStyle(w.document.getElementById('fixture')).color;}),'rgb(1, 2, 3)');
   await page.click('#inspect'); assert.equal(await page.locator('#panel').isVisible(), false); await page.click('#inspect');
-  await page.selectOption('#device', 'iphone');
+  await page.selectOption('#device', 'iphone-17e');
   await paste(html); await page.selectOption('#scale', 'fit'); await page.uncheck('#safe');
   await page.click('#compare');
   await page.waitForFunction(() => document.querySelectorAll('iframe').length === 3 && [...document.querySelectorAll('iframe')].every(f => f.contentDocument?.querySelector('#fixture')));
-  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('iframe')].map(f => f.contentWindow.innerWidth)), [390, 412, 928]);
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('iframe')].map(f => f.contentWindow.innerWidth)), [390, 412, 1224]);
   const scales = await page.locator('.device').evaluateAll(els => els.map(el => el.style.transform)); assert.equal(new Set(scales).size, 1);
   await page.getByRole('button', {name:'기기 3 검사 결과', exact:true}).click();
   assert.ok((await page.locator('#review-profile').textContent()).includes('FOLD'));
@@ -83,17 +84,17 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('iframe').length === 4 && [...document.querySelectorAll('iframe')].every(f => f.contentDocument?.querySelector('#fixture')));
   assert.equal(await page.locator('#add-device').isDisabled(), true);
   await page.click('#rotate');
-  await page.waitForFunction(() => [...document.querySelectorAll('iframe')].map(f=>f.contentWindow.innerWidth).join(',') === '844,568,1080,568');
+  await page.waitForFunction(() => [...document.querySelectorAll('iframe')].map(f=>f.contentWindow.innerWidth).join(',') === '844,568,924,844');
   await page.click('#rotate');
   await page.getByRole('button', {name:'기기 4 제거', exact:true}).click(); assert.equal(await page.locator('iframe').count(), 3);
   await page.getByRole('button', {name:'기기 3 제거', exact:true}).click(); assert.equal(await page.locator('iframe').count(), 2);
   assert.equal(await page.locator('.remove-card').count(), 0);
   await page.click('#compare'); assert.equal(await page.locator('iframe').count(), 1);
-  assert.equal(await page.locator('#device').inputValue(), 'iphone');
+  assert.equal(await page.locator('#device').inputValue(), 'iphone-17e');
   await page.waitForFunction(() => document.querySelector('iframe').contentDocument?.querySelector('.wide'));
   console.log('PASS Phase 2: independent viewports, shared Fit, per-card QA/profile, 2–4 bounds, common rotation, source retention.');
   await page.click('#paste'); await page.fill('#code', await (await import('../public/sample.js')).sample); await page.click('#apply-code');
-  await page.selectOption('#device', 'iphone'); await page.selectOption('#scale', 'fit'); await page.uncheck('#safe');
+  await page.selectOption('#device', 'iphone-17e'); await page.selectOption('#scale', 'fit'); await page.uncheck('#safe');
   await page.fill('#min-font', '12'); await page.locator('#min-font').press('Tab');
   await page.waitForTimeout(300); await mkdir('artifacts', {recursive:true}); await page.evaluate(() => document.getElementById('toast').hidden = true); await page.screenshot({path:'artifacts/phase-1.png',fullPage:true});
   await page.click('#compare'); await page.waitForTimeout(300); await page.screenshot({path:'artifacts/phase-2.png',fullPage:true}); await page.click('#compare');

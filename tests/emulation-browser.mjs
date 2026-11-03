@@ -68,10 +68,10 @@ try {
   await page.goto(base); await page.click('#emulate'); await page.click('#run-emulation');
   await page.waitForFunction(()=>!document.getElementById('preview-actions').hidden,{},{timeout:25000});
   assert.equal(await page.locator('#emulation-dialog').isVisible(),false);
-  assert.equal(await page.locator('.device').evaluate(el=>Number.parseFloat(el.style.width)),390);
-  const downloadImage = page.waitForEvent('download'); await page.click('#download-image'); assert.equal((await downloadImage).suggestedFilename(),'qa-iphone.png');
-  const downloadReport = page.waitForEvent('download'); await page.click('#download-report'); assert.equal((await downloadReport).suggestedFilename(),'qa-iphone.json');
-  const downloadWebp = page.waitForEvent('download'); await page.click('#download-webp'); assert.equal((await downloadWebp).suggestedFilename(),'qa-iphone.webp');
+  assert.equal(await page.locator('.device').evaluate(el=>Number.parseFloat(el.style.width)),402);
+  const downloadImage = page.waitForEvent('download'); await page.click('#download-image'); assert.equal((await downloadImage).suggestedFilename(),'qa-iphone-18-pro.png');
+  const downloadReport = page.waitForEvent('download'); await page.click('#download-report'); assert.equal((await downloadReport).suggestedFilename(),'qa-iphone-18-pro.json');
+  const downloadWebp = page.waitForEvent('download'); await page.click('#download-webp'); assert.equal((await downloadWebp).suggestedFilename(),'qa-iphone-18-pro.webp');
   assert.ok((await page.locator('#toast').textContent()).includes('압축 이미지'));
   await page.screenshot({path:'artifacts/phase-3.png',fullPage:true});
   await page.click('#open-url'); await page.fill('#url-input','https://fixture.example/'); await page.click('#apply-url');

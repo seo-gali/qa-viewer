@@ -33,12 +33,12 @@ try {
   assert.ok((await page.locator('#checks').textContent()).includes('POST'));
   assert.equal(requests.some(url => url.endsWith('/submit')), false);
   assert.ok(requests.some(url => url.endsWith('/app.js')));
-  await page.selectOption('#device', 'galaxy'); await page.selectOption('#device', 'iphone-large'); await ready();
+  await page.selectOption('#device', 'galaxy-s26'); await page.selectOption('#device', 'iphone-16-plus'); await ready();
   assert.equal(await page.locator('.device').evaluate(el=>Number.parseFloat(el.style.width)), 430);
   await page.click('#compare'); await ready(3);
-  assert.deepEqual(await page.locator('.device').evaluateAll(devices => devices.map(device => Number.parseFloat(device.style.width))), [430, 412, 928]);
+  assert.deepEqual(await page.locator('.device').evaluateAll(devices => devices.map(device => Number.parseFloat(device.style.width))), [430, 412, 1224]);
   await page.getByRole('button', { name: '기기 3 검사 결과', exact: true }).click();
-  assert.ok((await page.locator('#review-profile').textContent()).includes('FOLD 6'));
+  assert.ok((await page.locator('#review-profile').textContent()).includes('FOLD 8'));
   await page.click('#compare'); await ready();
   fail = true; await page.click('#reload');
   await page.waitForFunction(() => document.getElementById('issues').querySelector('button') && !document.getElementById('emulate').disabled, null, { timeout: 25000 });

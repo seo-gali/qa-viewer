@@ -28,6 +28,8 @@ npm start
 
 도구 모음의 폭에 따른 글자·간격·입력 크기 축소와 한 줄 유지. 좁은 화면의 가로 이동 지원.
 자동 맞춤은 기기 간 공통 배율, 비교는 행 전체 기준 배율 사용. 100%는 선택한 CSS 크기 확인용.
+하단 −/+ 버튼으로 10%p씩 확대·축소. 콘텐츠 크기와 viewport 유지.
+검수 패널 경계의 드래그 또는 좌우 방향키로 너비 조절. 좁은 화면은 세로 배치 유지.
 노치·접힘선·안전 영역은 Safe Area 선택 시만 표시하는 참고 그림.
 
 ## 보기와 클릭
@@ -49,13 +51,24 @@ JavaScript 기본 OFF. 스크립트 기반 버튼은 실행 선택 필요. 정�
 
 ## 기기와 검사
 
-설치된 [Playwright 기기 정의](https://playwright.dev/docs/emulation#devices)의 모델명·screen 또는 viewport의 CSS 크기·DPR·참조 UA 사용.
-iPhone 17·17 Pro·17 Pro Max·Air, Galaxy Z Fold 7·Cover·Flip 7, Pixel 10·10 Pro·10 Pro XL 및 기존 모델 제공.
+Apple·Samsung의 동일 CSS 가로·세로 크기를 한 항목으로 통합. 연도별 구분·Google 기기 제거.
+iPhone 18 Pro/Max·17e·Duo·17·Air·16·15, Galaxy S26/+/Ultra/FE·Fold 8/Ultra·Flip 8·Fold 7/Flip 7 및 기존 모델 제공.
+설치된 [Playwright 기기 정의](https://playwright.dev/docs/emulation#devices)와 제조사 발표 비율 기반 참고 크기 구분. 신규 참고 프로필의 CSS 크기·DPR은 브라우저 실측값과 구분. [크기 출처와 계산](docs/devices.md) 참조.
 직접 입력 범위 240–2048 CSS px. 실제 하드웨어·Safari·시스템 바·키보드 재현과 구분.
-추가 모델의 Safe Area 참고값 미제공. Galaxy S26의 확인된 CSS 크기 자료 미확보로 목록 제외.
+추가 모델의 Safe Area 참고값 미제공. 화면 설정에서 DPR 조절 지원.
 
 검사 항목: 가로 넘침·작은 글자·화면 밖 고정 요소·콘텐츠 잘림·깨진 내부 링크·이미지 실패·media query.
 작은 글자는 설정 임계값 경고이며 웹 표준 위반 판정과 구분. 요소 강조는 기본 HTML 보기에서 제공.
+콘텐츠 잘림은 첫 화면의 같은 컨테이너별 통합. 실제 페이지 넘침과 이미지 바깥 클릭 영역 구분.
+반복 리소스 차단 경고의 한 줄 통합과 촬영 완료 후 자체 취소 경고 제외. 60개 요청 등 기존 제한 유지.
+
+## SEO 검사
+
+검수 패널의 SEO 버튼으로 현재 문서의 제목·검색 설명·대표 주소·검색 차단 meta·제목 구조·이미지 alt·공유 정보·JSON-LD 문법·문서 언어 확인.
+정적 HTML과 Chromium 결과에서 같은 검사기 사용. 탭 전환의 추가 요청 없음. 기존 검사 결과 JSON에 SEO 항목 포함.
+고정 글자 수·임의 점수·검색 순위·AI 인용 가능성 판정 제외. 빈 alt와 속성 누락 구분.
+JSON-LD 문법 확인과 검색엔진의 구조화 데이터 적격성 판정 구분.
+robots.txt·sitemap·응답 헤더·사이트 전체 수집·GEO/AEO 평가·Word/PDF 보고서 미구현.
 
 ## 데이터와 제한
 
@@ -68,7 +81,7 @@ iPhone 17·17 Pro·17 Pro Max·Air, Galaxy Z Fold 7·Cover·Flip 7, Pixel 10·10
 - 로컬 세션·Host/Origin 검증·동시 검사 1개·분당 20회 제한.
 - 정적 iframe의 sandbox=allow-same-origin 및 격리 브라우저의 폼·팝업·다운로드·서비스 워커 차단.
 
-공개 서비스 인증·DB·운영 모니터링·공개 SEO 구성 없음. 로컬 세션을 운영 인증으로 간주하지 않음.
+공개 서비스 인증·DB·운영 모니터링·뷰어 자체의 공개 도메인/SEO 구성 없음. 로컬 세션을 운영 인증으로 간주하지 않음.
 
 ## 디렉토리
 
@@ -85,20 +98,24 @@ iPhone 17·17 Pro·17 Pro Max·Air, Galaxy Z Fold 7·Cover·Flip 7, Pixel 10·10
 
 ## 확인 결과
 
-기준일: 2026-11-02. 실행한 항목과 미실행 항목 구분.
+기준일: 2026-11-03. 실행한 항목과 미실행 항목 구분.
 
 | 확인 | 결과 |
 | --- | --- |
 | 설치된 Chrome | 공개 GitHub Issues 링크 이동·ktwiz 화면 모드 버튼 클릭 통과 |
 | 실제 로컬 앱·프로젝트 HTML | 마우스 펼치기·키보드 닫기·내부 링크·드래그 구분 통과 |
 | npm run check | 구문 검사 통과 |
-| node --test tests/emulation-config.test.mjs | 실제 설정 검증 함수 3개 통과 |
+| 실제 앱·설치된 Chrome | 크기별 24항목·확대 중 viewport 유지·패널 드래그/키보드·SEO 9항목 통과 |
+| 실제 나무위키 iPhone 16 URL | 제목 확인·402px 이미지/표시/스크롤 폭 일치·차단 경고 한 줄 통과 |
+| node --test tests/profiles.test.mjs tests/emulation-config.test.mjs | 실제 기기/설정 검증 함수 8개 통과 |
 | npm run test:secrets | 추적 파일·스테이징·이력의 인식 시크릿 발견 0건 |
 | 전체 단위·모의 브라우저 검사 | 이번 작업에서 미실행 |
 | 이전 스크롤 작업의 보조 표시 최종 확인 | 대기 시점 문제로 중단·미완료 기록 유지 |
 
 공개 사이트 클릭 결과 갱신 단회 약 1.7초. 모든 사이트의 시간·동작 보장 제외.
+나무위키 실제 페이지 두 번 확인에서 약 1.9–2.8초·레이아웃 경고 57–59개·리소스 제한 10–12건 관찰. 경고 0건 또는 모든 리소스 로드로 표현하지 않음.
 Git 제외 경로 artifacts/의 click-local-app.png·click-github-link.png·click-live-button.png에 확인 화면 보관.
+이번 화면은 ui-seo-panel.png·namu-current.png, 실제 확인 스크립트/출력은 current-ui-check.mjs·current-ui-result.log에 보관.
 이전 LCP·CLS·heap 수치를 현재 성능으로 재사용하지 않음. [추가 진단 기록](docs/chrome-devtools.md) 참조.
 
 [설계](docs/Design.md) · [작업 상태](PLAN.md) · [작업·배포 점검 기준](AGENTS.md)

@@ -1,4 +1,4 @@
-import { profiles, resolveProfile, fitScale, validDimension } from './profiles.js';
+import { profiles, profileChoices, resolveProfile, fitScale, validDimension } from './profiles.js';
 import { previewDocument } from './security.js';
 import { inspectDocument } from './inspector.js';
 import { sample } from './sample.js';
@@ -6,8 +6,9 @@ import { capture, setupEmulation } from './emulation-ui.js';
 import { validatePublicUrl } from './public-url.js';
 
 const $ = id => document.getElementById(id);
-const state = { html: sample, url: null, urls: [], clicks: [], scripts: false, snapshot: false, dpr: null, colorScheme: 'light', filename: 'qa-sample.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone', 'pixel-7', 'fold'], compare: false, active: 0, cards: [], generation: 0 };
+const state = { html: sample, url: null, urls: [], clicks: [], scripts: false, snapshot: false, dpr: null, colorScheme: 'light', filename: 'qa-sample.html', landscape: false, custom: [{ width: 390, height: 844 }], selections: ['iphone-18-pro', 'galaxy-s26-ultra', 'fold-8'], compare: false, active: 0, cards: [], generation: 0 };
 let toastTimer, scanTimer;
+let currentScale = 1, reviewType = 'layout';
 let codeDraft = null, urlDraft = null;
 let previewJob = Promise.resolve();
 const previews = new Map();
@@ -30,18 +31,18 @@ export function toast(message, kind = 'error', input) {
   }
   $('toast').textContent = message; $('toast').className = `toast ${kind}`; $('toast').setAttribute('role', kind === 'error' ? 'alert' : 'status'); $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500);
 }
-function populate(select, selected = 'iphone') {
-  for (const group of [...new Set(profiles.filter(p => p.group !== 'Generic').map(p => p.group))]) {
+function populate(select, selected = 'iphone-18-pro') {
+  for (const group of [...new Set(profileChoices.map(p => p.group))]) {
     const optgroup = document.createElement('optgroup'); optgroup.label = group;
-    for (const p of profiles.filter(p => p.group === group)) { const option = new Option(p.id === 'custom' ? p.name : `${p.name} · ${p.width} × ${p.height}`, p.id); optgroup.append(option); }
+    for (const p of profileChoices.filter(p => p.group === group)) { const option = new Option(p.id === 'custom' ? p.name : `${p.width} × ${p.height} · ${p.name}`, p.id); if (p.source) option.title = '제조사 화면 비율 기반 검수 기준. 실제 브라우저 기본 크기와 다를 수 있습니다.'; optgroup.append(option); }
     select.append(optgroup);
   }
-  select.value = selected;
+  select.value = profileChoices.find(p => p.ids.includes(selected))?.id ?? selected;
 }
 populate($('device'));
 function currentProfile() { return resolveProfile(state.selections[state.active], state.custom[state.active], state.landscape); }
 function syncToolbar() {
-  const p = currentProfile(); $('device').value = state.selections[state.active];
+  const p = currentProfile(); $('device').value = profileChoices.find(choice => choice.ids.includes(p.id))?.id ?? p.id;
   $('width').value = p.width; $('height').value = p.height;
   $('add-device').hidden = !state.compare; $('add-device').disabled = state.selections.length >= 4;
   $('compare').setAttribute('aria-pressed', String(state.compare));
@@ -166,10 +167,11 @@ function showClickTargets(card, index) {
 function scaleCards() {
   const canvas = $('canvas');
   const availableHeight = Math.max(200, canvas.offsetHeight - (state.compare ? 192 : 154));
-  const reference = profiles.filter(p => p.referenceDevice);
+  const reference = profiles.filter(p => p.referenceDevice || p.source);
   const widths = state.compare ? state.cards.map(c => c.p.width + 10) : [Math.max(...reference.map(p => state.landscape ? p.height : p.width), state.cards[0].p.width) + 10];
   const heights = state.compare ? state.cards.map(c => c.p.height + 10) : [Math.max(...reference.map(p => state.landscape ? p.width : p.height), state.cards[0].p.height) + 10];
-  const scale = $('scale').value === 'fit' ? fitScale(widths, heights, Math.max(240, canvas.offsetWidth - 72), availableHeight) : Number($('scale').value);
+  const scale = $('scale').value === 'fit' ? fitScale(widths, heights, Math.max(240, canvas.offsetWidth - 72), availableHeight) : Number($('scale').value === 'custom' ? $('custom-scale').dataset.scale : $('scale').value);
+  currentScale = scale; $('zoom-percent').textContent = `${Math.round(scale * 100)}%`;
   for (const card of state.cards) {
     card.device.style.transform = `scale(${scale})`;
     card.article.style.width = `${(card.p.width + 10) * scale}px`;
@@ -215,8 +217,17 @@ function check(message, ok) {
   const row = document.createElement('div'); row.className = `check ${ok ? '' : 'warning'}`;
   const symbol = document.createElement('b'); symbol.textContent = ok ? '✓' : '⚠'; row.append(symbol, document.createTextNode(message)); return row;
 }
-const issueTypes = { overflow: 'Horizontal overflow', text: '작은 텍스트', safe: 'Safe Area 침범 가능', fixed: '화면 밖 fixed 요소', clipped: '콘텐츠 잘림 가능', link: '깨진 내부 링크', image: '이미지 로드 실패' };
+const issueTypes = { overflow: '가로 넘침', text: '작은 텍스트', safe: 'Safe Area 침범 가능', fixed: '화면 밖 fixed 요소', clipped: '콘텐츠 잘림 가능', link: '깨진 내부 링크', image: '이미지 로드 실패' };
 function displayReport(card) {
+  $('layout-results').hidden = reviewType !== 'layout'; $('seo-results').hidden = reviewType !== 'seo'; $('issue-count').hidden = reviewType === 'seo';
+  $('seo-results').replaceChildren();
+  for (const row of card?.report?.seo ?? []) {
+    const item = document.createElement('section'); item.className = 'seo-item';
+    const label = document.createElement('strong'); label.textContent = row.label;
+    const value = document.createElement('p'); value.textContent = row.value;
+    item.append(check(row.ok ? '확인됨' : '내용 확인 필요', row.ok), label, value); $('seo-results').append(item);
+  }
+  const scope = document.createElement('p'); scope.className = 'support-scope'; scope.textContent = '현재 페이지 내용 기준입니다. 검색 순위·AI 노출·robots.txt·sitemap·응답 헤더는 검사하지 않습니다.'; $('seo-results').append(scope);
   $('preview-actions').hidden = !card?.result;
   $('clear-box').hidden = snapshotMode();
   if (card?.error) { $('issue-count').textContent = '—'; $('checks').replaceChildren(check(card.error, false)); $('issues').replaceChildren(); const retry = document.createElement('button'); retry.textContent = '다시 시도'; retry.addEventListener('click', render); $('issues').append(retry); $('breakpoints').textContent = ''; $('status').textContent = '불러오기 실패'; return; }
@@ -227,8 +238,9 @@ function displayReport(card) {
   $('issue-count').textContent = r.issues.length + (r.truncated ? '+' : '');
   $('checks').replaceChildren(check(r.metaViewport ? 'viewport meta 존재' : 'viewport meta 없음', !!r.metaViewport), check(r.horizontalOverflow ? `가로 scroll ${r.scrollWidth}px / ${r.viewport.width}px` : '가로 스크롤 없음', !r.horizontalOverflow), check(card.result ? `Chromium 스냅샷 · JavaScript ${card.result.settings.scripts ? 'ON' : 'OFF'}` : 'JavaScript 격리 · 외부 리소스 차단', true));
   if (card.result) {
-    for (const error of card.result.errors) $('checks').append(check(error, false));
-    if (card.result.blockedRequests) $('checks').append(check(`리소스 ${card.result.blockedRequests}개 차단 · 공개 HTTPS GET만 지원`, false));
+    const errors = [...new Set(card.result.errors)], resourceErrors = errors.filter(error => error.startsWith('리소스 차단:'));
+    for (const error of errors.filter(error => !error.startsWith('리소스 차단:'))) $('checks').append(check(error, false));
+    if (card.result.blockedRequests) $('checks').append(check(`불러오기 제한 ${card.result.blockedRequests}개 · ${(resourceErrors[0] ?? '공개 HTTPS GET만 지원').replace('리소스 차단:', '').trim()}`, false));
   }
   if (r.truncated) $('checks').append(check('스캔 / 경고 제한에 도달했습니다.', false));
   $('issues').replaceChildren();
@@ -246,7 +258,7 @@ function displayReport(card) {
   $('breakpoints').replaceChildren();
   for (const condition of r.breakpoints) { const code = document.createElement('code'); const matches = card.result ? r.mediaQueries.find(item => item.query === condition)?.matches : card.iframe.contentWindow.matchMedia(condition).matches; code.textContent = `${matches ? '●' : '○'} ${condition}`; $('breakpoints').append(code); }
   if (!r.breakpoints.length) $('breakpoints').textContent = '검출된 media query 없음';
-  $('status').textContent = `${card.p.width} × ${card.p.height} CSS px · ${state.landscape ? 'Landscape' : 'Portrait'} · Safe Area ${$('safe').checked ? 'ON' : 'OFF'} · ${r.horizontalOverflow ? 'Overflow 발견' : 'No horizontal overflow'}`;
+  $('status').textContent = `${card.p.width} × ${card.p.height} CSS px · ${card.p.width > card.p.height ? '가로' : '세로'} · ${card.p.source ? '발표 비율 기반 검수 기준 · ' : ''}${r.horizontalOverflow ? '가로 넘침 발견' : '가로 넘침 없음'}`;
 }
 function loadHTML(html, filename, source, scripts = false) {
   if (new Blob([html]).size > 2 * 1024 * 1024) { toast('HTML은 최대 2MB까지 열 수 있습니다.'); return false; }
@@ -288,14 +300,25 @@ for (const id of ['width', 'height']) $(id).addEventListener('change', () => {
   state.selections[state.active] = 'custom'; state.clicks[state.active] = []; render();
 });
 $('rotate').addEventListener('click', () => { state.landscape = !state.landscape; state.clicks = []; render(); });
-$('scale').addEventListener('change', scaleCards);
+$('scale').addEventListener('change', () => { $('custom-scale').hidden = $('scale').value !== 'custom'; scaleCards(); });
+for (const [id, step] of [['zoom-in', .1], ['zoom-out', -.1]]) $(id).addEventListener('click', () => {
+  const scale = Math.max(.1, Math.min(2, Math.round((currentScale + step) * 100) / 100));
+  $('custom-scale').dataset.scale = String(scale); $('custom-scale').textContent = `${Math.round(scale * 100)}%`; $('custom-scale').hidden = false; $('scale').value = 'custom'; scaleCards();
+});
 $('reload').addEventListener('click', () => { previews.clear(); state.clicks = []; render(); });
 $('safe').addEventListener('change', scheduleScan);
-$('inspect').addEventListener('change', () => { $('panel').hidden = !$('inspect').checked; if (!$('inspect').checked) { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); } scaleCards(); });
+$('inspect').addEventListener('change', () => { $('panel').hidden = $('panel-resizer').hidden = !$('inspect').checked; if (!$('inspect').checked) { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); } scaleCards(); });
+for (const type of ['layout', 'seo']) $(`review-${type}`).addEventListener('click', () => { reviewType = type; for (const name of ['layout', 'seo']) $(`review-${name}`).setAttribute('aria-pressed', String(name === type)); displayReport(state.cards[state.active]); });
+let panelDrag = null;
+function panelWidth(percent) { const value = Math.max(20, Math.min(70, percent)); $('panel').style.width = `${value}%`; $('panel-resizer').setAttribute('aria-valuenow', String(Math.round(value))); }
+$('panel-resizer').addEventListener('pointerdown', event => { panelDrag = { x: event.clientX, percent: 100 * $('panel').getBoundingClientRect().width / $('panel').parentElement.clientWidth }; event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); });
+$('panel-resizer').addEventListener('pointermove', event => { if (panelDrag) panelWidth(panelDrag.percent + 100 * (panelDrag.x - event.clientX) / $('panel').parentElement.clientWidth); });
+for (const type of ['pointerup', 'pointercancel']) $('panel-resizer').addEventListener(type, () => { panelDrag = null; });
+$('panel-resizer').addEventListener('keydown', event => { const step = { ArrowLeft: 5, ArrowRight: -5 }[event.key]; if (step) { event.preventDefault(); panelWidth(Number(event.currentTarget.getAttribute('aria-valuenow')) + step); } });
 $('min-font').addEventListener('change', () => { const n = Number($('min-font').value); if (!Number.isFinite(n) || n < 6 || n > 32) { $('min-font').value = 12; toast('최소 글자 기준은 6–32px입니다.'); } scheduleScan(); });
 $('clear-box').addEventListener('click', () => { state.cards.forEach(c => { c.selected = null; updateOverlay(c); }); displayReport(state.cards[state.active]); });
 $('compare').addEventListener('click', () => { state.compare = !state.compare; state.active = 0; render(); });
-$('add-device').addEventListener('click', () => { if (state.selections.length >= 4) return; state.selections.push('iphone-se'); state.active = state.selections.length - 1; render(); });
+$('add-device').addEventListener('click', () => { if (state.selections.length >= 4) return; state.selections.push('iphone-17e'); state.active = state.selections.length - 1; render(); });
 new ResizeObserver(scaleCards).observe($('canvas'));
 const copyrightYear = String(new Date().getFullYear()); $('copyright-year').textContent = copyrightYear; $('copyright-year').dateTime = copyrightYear;
 document.querySelectorAll('dialog').forEach(dialog => {
