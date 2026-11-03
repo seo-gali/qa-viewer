@@ -15,6 +15,18 @@
 
 흐름: 입력 → app.js → 기본 HTML iframe 또는 capture → 로컬 API → 검증 → 격리 Chromium → 이미지/검사/클릭 대상 → 본 화면.
 
+## 실행 설정
+
+기본 주소는 http://127.0.0.1:4173 이다. 포트 변경은 해당 실행 프로세스에 QA_PORT를 지정한다.
+
+```powershell
+$env:QA_PORT = '4174'
+npm start
+```
+
+실제 Node.js 허용 범위는 server/runtime.mjs가 검사한다. package.json과 lock의 engines >=22 표기는 실행 허용 범위보다 넓다. 자세한 버전과 네트워크 제한은 아래 표에 기록한다.
+README는 설치·사용·기능 요약을 제공하며 측정값과 세부 검증 기록은 PLAN.md에 보관한다. 화면 캡처는 docs/screenshots/overview.png·seo.png의 실제 로컬 앱 화면이다.
+
 ## 렌더링
 
 기본 HTML은 sandbox=allow-same-origin인 Blob iframe이다. allow-scripts를 함께 추가하지 않는다. 원본 doctype·quirks mode·CSS·viewport meta를 유지하고 CSP 삽입·refresh meta 제거·외부 링크 차단을 적용한다. DOM 검사와 경고 overlay를 제공한다.
